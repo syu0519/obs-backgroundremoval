@@ -11,12 +11,13 @@ import { Image } from "astro:assets";
 
 import DefineLocalDate from "../components/DefineLocalDate.astro";
 
-import { GITHUB_OWNER, GITHUB_REPO, PRODUCTION_BASE_URL } from "../lib/info.js";
+import { GITHUB_OWNER, GITHUB_REPO, PRODUCTION_BASE_URL, PLUGIN_TUTORIAL_YOUTUBE_COURSE_URL } from "../lib/info.js";
 
 import Layout from "../layouts/Layout.astro";
 
 import demo from "../assets/demo.gif";
 import icon from "../assets/obs-backgroundremoval-icon.jpg";
+import GitHubMarkWhite from "../../public/github-mark-white.svg";
 
 export type LatestRelease =
   RestEndpointMethodTypes["repos"]["getLatestRelease"]["response"]["data"];
@@ -95,6 +96,22 @@ const release = await getLatestRelease();
       on usage in OBS
     </p>
 
+    <section class="material-button-section">
+      <div class="github-button">
+        <a href={release.html_url} target="_blank" rel="noopener noreferrer">
+          <GitHubMarkWhite viewBox="0 0 98 96" width="24" height="24" />
+          <span>View on GitHub</span>
+        </a>
+      </div>
+      <div class="video-tutorials-button">
+        <a
+          href={PLUGIN_TUTORIAL_YOUTUBE_COURSE_URL}
+        >
+          ▶︎ YouTube Tutorials
+        </a>
+      </div>
+    </section>
+
     <p>
       <a href={joinURL(BASE_URL, "versions/")}>Version History</a>
     </p>
@@ -105,16 +122,6 @@ const release = await getLatestRelease();
 
     <p>
       <a href={joinURL(BASE_URL, "uninstall/")}>Uninstall instructions</a>
-    </p>
-
-    <p>
-      <a
-        href="https://github.com/royshil/obs-backgroundremoval"
-        target="_blank"
-        rel="noopener"
-      >
-        View on GitHub
-      </a>
     </p>
   </main>
 </Layout>
