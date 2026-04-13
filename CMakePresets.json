@@ -67,7 +67,7 @@
 			  "CMAKE_COMPILE_WARNING_AS_ERROR": true,
 			  "CMAKE_PREFIX_PATH": "$env{VCPKG_ROOT}/installed/x64-windows-static-md-obs"
 			}
-		  }
+		  },
 		{
 			"name": "ubuntu-x86_64",
 			"displayName": "Ubuntu x86_64",
