@@ -19,6 +19,15 @@ const char *const MODEL_ENHANCE_URETINEX = "models/uretinex_net_180x320.with_run
 const char *const MODEL_ENHANCE_SGLLIE = "models/semantic_guided_llie_180x324.with_runtime_opt.ort";
 const char *const MODEL_DEPTH_TCMONODEPTH = "models/tcmonodepth_tcsmallnet_192x320.with_runtime_opt.ort";
 
+// CorridorKey AI green screen keyer models
+// Source: https://github.com/alexandremendoncaalvaro/CorridorKey-Runtime
+const char *const MODEL_CORRIDORKEY_INT8_512  = "models/corridorkey_int8_512.onnx";
+const char *const MODEL_CORRIDORKEY_INT8_768  = "models/corridorkey_int8_768.onnx";
+const char *const MODEL_CORRIDORKEY_INT8_1024 = "models/corridorkey_int8_1024.onnx";
+const char *const MODEL_CORRIDORKEY_FP16_512  = "models/corridorkey_fp16_512.onnx";
+const char *const MODEL_CORRIDORKEY_FP16_1024 = "models/corridorkey_fp16_1024.onnx";
+const char *const MODEL_CORRIDORKEY_FP16_2048 = "models/corridorkey_fp16_2048.onnx";
+
 const char *const USEGPU_CPU = "cpu";
 const char *const USEGPU_CUDA = "cuda";
 const char *const USEGPU_ROCM = "rocm";
