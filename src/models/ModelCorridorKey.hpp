@@ -14,7 +14,7 @@
 #ifndef MODELCORRIDORKEY_H
 #define MODELCORRIDORKEY_H
 
-#include "Model.hpp"
+#include "Model.h"
 
 class ModelCorridorKey : public ModelBCHW {
 private:

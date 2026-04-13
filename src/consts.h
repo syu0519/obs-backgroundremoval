@@ -18,6 +18,8 @@ const char *const MODEL_ENHANCE_TBEFN = "models/tbefn_fp32.with_runtime_opt.ort"
 const char *const MODEL_ENHANCE_URETINEX = "models/uretinex_net_180x320.with_runtime_opt.ort";
 const char *const MODEL_ENHANCE_SGLLIE = "models/semantic_guided_llie_180x324.with_runtime_opt.ort";
 const char *const MODEL_DEPTH_TCMONODEPTH = "models/tcmonodepth_tcsmallnet_192x320.with_runtime_opt.ort";
+const char *const MODEL_ENHANCE_ZERODCE = "models/zero_dce_180x320.onnx";
+const char *const MODEL_RMBG = "models/bria_rmbg_1_4_qint8.onnx";
 
 // CorridorKey AI green screen keyer models
 // Source: https://github.com/alexandremendoncaalvaro/CorridorKey-Runtime
