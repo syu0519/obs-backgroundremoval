@@ -65,7 +65,8 @@
 			"description": "Build for Windows x64 on CI",
 			"cacheVariables": {
 			  "CMAKE_COMPILE_WARNING_AS_ERROR": true,
-			  "CMAKE_PREFIX_PATH": "$env{VCPKG_ROOT}/installed/x64-windows-static-md-obs"
+			  "CMAKE_PREFIX_PATH": "$env{VCPKG_ROOT}/installed/x64-windows-static-md-obs",
+			  "USE_SYSTEM_ONNXRUNTIME": false
 			}
 		  },
 		{
