@@ -7,6 +7,7 @@
 name: Plugin CI
 
 on:
+  workflow_dispatch:
   pull_request:
     branches: [main]
   push:
@@ -26,8 +27,10 @@ jobs:
     uses: ./.github/workflows/plugin-build-windows.yml
     with:
       VCPKG_BINARY_SOURCES: 'clear;http,https://vcpkg-obs.kaito.tokyo/{name}/{version}/{sha}'
-      vcpkg-version: '2025.08.27'
-      ort-version: v1.24.4
+      vcpkg-version:
+  workflow_dispatch: '2025.08.27'
+      ort-version:
+  workflow_dispatch: v1.24.4
 
   build-macos:
     permissions:
@@ -35,8 +38,10 @@ jobs:
     uses: ./.github/workflows/plugin-build-macos.yml
     with:
       VCPKG_BINARY_SOURCES: 'clear;http,https://vcpkg-obs.kaito.tokyo/{name}/{version}/{sha}'
-      vcpkg-version: '2025.08.27'
-      ort-version: v1.24.4
+      vcpkg-version:
+  workflow_dispatch: '2025.08.27'
+      ort-version:
+  workflow_dispatch: v1.24.4
       codesign-enabled: ${{ github.event_name == 'push' && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/')) }}
     secrets: inherit
 
@@ -46,13 +51,16 @@ jobs:
     uses: ./.github/workflows/plugin-build-ubuntu.yml
     with:
       VCPKG_BINARY_SOURCES: 'clear;http,https://vcpkg-obs.kaito.tokyo/{name}/{version}/{sha}'
-      vcpkg-version: '2025.08.27'
-      ort-version: v1.24.4
+      vcpkg-version:
+  workflow_dispatch: '2025.08.27'
+      ort-version:
+  workflow_dispatch: v1.24.4
 
   accept-plugin:
     name: Accept Plugin CI
     needs: [build-windows, build-macos, build-ubuntu]
-    runs-on: ubuntu-slim
+    runs-on:
+  workflow_dispatch: ubuntu-slim
     permissions: {}
     steps:
       - name: Accept plugin
