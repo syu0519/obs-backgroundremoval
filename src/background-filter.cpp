@@ -315,7 +315,7 @@ void background_filter_update(void *data, obs_data_t *settings)
 	const uint32_t newNumThreads = (uint32_t)obs_data_get_int(settings, "numThreads");
 
 	if (tf->modelSelection.empty() || tf->modelSelection != newModel || tf->useGPU != newUseGpu ||
-	    tf->numThreads != newNumThreads) {
+	    tf->numThreads != newNumThreads || !tf->model || !tf->session) {
 		// lock modelMutex
 		std::unique_lock<std::mutex> lock(tf->modelMutex);
 
@@ -326,27 +326,27 @@ void background_filter_update(void *data, obs_data_t *settings)
 
 		if (tf->modelSelection == MODEL_SINET) {
 			tf->model.reset(new ModelSINET);
-		}
-		if (tf->modelSelection == MODEL_SELFIE) {
+		} else if (tf->modelSelection == MODEL_SELFIE) {
 			tf->model.reset(new ModelSelfie);
-		}
-		if (tf->modelSelection == MODEL_SELFIE_MULTICLASS) {
+		} else if (tf->modelSelection == MODEL_SELFIE_MULTICLASS) {
 			tf->model.reset(new ModelSelfieMulticlass);
-		}
-		if (tf->modelSelection == MODEL_MEDIAPIPE) {
+		} else if (tf->modelSelection == MODEL_MEDIAPIPE) {
 			tf->model.reset(new ModelMediaPipe);
-		}
-		if (tf->modelSelection == MODEL_RVM) {
+		} else if (tf->modelSelection == MODEL_RVM) {
 			tf->model.reset(new ModelRVM);
-		}
-		if (tf->modelSelection == MODEL_PPHUMANSEG) {
+		} else if (tf->modelSelection == MODEL_PPHUMANSEG) {
 			tf->model.reset(new ModelPPHumanSeg);
-		}
-		if (tf->modelSelection == MODEL_DEPTH_TCMONODEPTH) {
+		} else if (tf->modelSelection == MODEL_DEPTH_TCMONODEPTH) {
 			tf->model.reset(new ModelTCMonoDepth);
-		}
-		if (tf->modelSelection == MODEL_RMBG) {
+		} else if (tf->modelSelection == MODEL_RMBG) {
 			tf->model.reset(new ModelRMBG);
+		} else if (tf->modelSelection == MODEL_CORRIDORKEY_INT8_512 ||
+			   tf->modelSelection == MODEL_CORRIDORKEY_INT8_768 ||
+			   tf->modelSelection == MODEL_CORRIDORKEY_INT8_1024 ||
+			   tf->modelSelection == MODEL_CORRIDORKEY_FP16_512 ||
+			   tf->modelSelection == MODEL_CORRIDORKEY_FP16_1024 ||
+			   tf->modelSelection == MODEL_CORRIDORKEY_FP16_2048) {
+			tf->model.reset(new ModelCorridorKey);
 		}
 
 		int ortSessionResult = createOrtSession(tf.get());
@@ -357,14 +357,6 @@ void background_filter_update(void *data, obs_data_t *settings)
 			tf->model.reset();
 			return;
 		}
-		if (tf->modelSelection == MODEL_CORRIDORKEY_INT8_512 ||
-    tf->modelSelection == MODEL_CORRIDORKEY_INT8_768 ||
-    tf->modelSelection == MODEL_CORRIDORKEY_INT8_1024 ||
-    tf->modelSelection == MODEL_CORRIDORKEY_FP16_512 ||
-    tf->modelSelection == MODEL_CORRIDORKEY_FP16_1024 ||
-    tf->modelSelection == MODEL_CORRIDORKEY_FP16_2048) {
-    tf->model.reset(new ModelCorridorKey);
-}
 	}
 
 	obs_enter_graphics();
