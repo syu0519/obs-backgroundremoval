@@ -65,13 +65,28 @@ public:
             inputDims.push_back(shape);
         }
 
-        // Read actual output shapes from model
+// Read actual output shapes from model
+        // Use input H/W to fix dynamic output dims (CUDA EP reports -1 for H/W)
+        int64_t knownH = 512, knownW = 512;
+        if (!inputDims.empty() && inputDims[0].size() >= 4) {
+            knownH = (inputDims[0][2] > 0) ? inputDims[0][2] : 512;
+            knownW = (inputDims[0][3] > 0) ? inputDims[0][3] : 512;
+        }
         for (size_t i = 0; i < session->GetOutputCount(); i++) {
             const Ort::TypeInfo outputTypeInfo = session->GetOutputTypeInfo(i);
             const auto outputTensorInfo = outputTypeInfo.GetTensorTypeAndShapeInfo();
             auto shape = outputTensorInfo.GetShape();
-            for (auto &d : shape) {
-                if (d <= 0) d = 1;
+            for (size_t j = 0; j < shape.size(); j++) {
+                if (shape[j] <= 0) {
+                    if (shape.size() == 4) {
+                        if (j == 0) shape[j] = 1;
+                        else if (j == 1) shape[j] = 1;
+                        else if (j == 2) shape[j] = knownH;
+                        else if (j == 3) shape[j] = knownW;
+                    } else {
+                        shape[j] = 1;
+                    }
+                }
             }
             outputDims.push_back(shape);
         }
