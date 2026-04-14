@@ -211,10 +211,8 @@ public:
         // Save for next frame's AlphaHint
         prevAlpha = alphaMat.clone();
 
-        // Convert to uint8 [0,255] for the mask pipeline
-        cv::Mat result;
-        alphaMat.convertTo(result, CV_8UC1, 255.0);
-        return result;
+// Return float [0,1] — pipeline will convert to uint8
+        return alphaMat.clone();
     }
 
     virtual void postprocessOutput(cv::Mat &output)
