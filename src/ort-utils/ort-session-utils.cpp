@@ -151,7 +151,12 @@ bool runFilterModelInference(filter_data *tf, const cv::Mat &imageBGRA, cv::Mat 
 	tf->model->loadInputToTensor(preprocessedImage, inputWidth, inputHeight, tf->inputTensorValues);
 
 	// Run network inference
-	tf->model->runNetworkInference(tf->session, tf->inputNames, tf->outputNames, tf->inputTensor, tf->outputTensor);
+        try {
+                tf->model->runNetworkInference(tf->session, tf->inputNames, tf->outputNames, tf->inputTensor, tf->outputTensor);
+        } catch (const std::exception &e) {
+                obs_log(LOG_ERROR, "[CorridorKey] Inference exception: %s", e.what());
+                return false;
+        }
 
 	// Get output
 	// Map network output to cv::Mat
