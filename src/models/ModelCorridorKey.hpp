@@ -216,11 +216,12 @@ public:
     }
 
     virtual void postprocessOutput(cv::Mat &output)
-    {
-        // Output is already uint8 from getNetworkOutput
-        // No additional processing needed
-        UNUSED_PARAMETER(output);
-    }
+{
+    // Convert float [0,1] to uint8 [0,255]
+    cv::Mat result;
+    output.convertTo(result, CV_8UC1, 255.0);
+    result.copyTo(output);
+}
 
 private:
     // Build AlphaHint from previous frame's alpha
