@@ -215,12 +215,10 @@ public:
         return alphaMat.clone();
     }
 
-    virtual void postprocessOutput(cv::Mat &output)
+virtual void postprocessOutput(cv::Mat &output)
 {
-    // Convert float [0,1] to uint8 [0,255]
-    cv::Mat result;
-    output.convertTo(result, CV_8UC1, 255.0);
-    result.copyTo(output);
+    UNUSED_PARAMETER(output);
+    // Keep float [0,1] — ort-session-utils will convert to CV_8U
 }
 
 private:
