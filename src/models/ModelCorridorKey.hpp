@@ -124,18 +124,14 @@ public:
 
     // Preprocess: normalize to [0,1], convert HWC→CHW
     virtual void prepareInputToNetwork(cv::Mat &resizedImage, cv::Mat &preprocessedImage)
-    {
-        // Convert BGR to RGB
-        cv::Mat rgbImage;
-        cv::cvtColor(resizedImage, rgbImage, cv::COLOR_BGR2RGB);
-
-        // Normalize to [0, 1]
-        cv::Mat normalized;
-        rgbImage.convertTo(normalized, CV_32FC3, 1.0 / 255.0);
-
-        // HWC → CHW
-        hwc_to_chw(normalized, preprocessedImage);
-    }
+{
+    // Input is already RGB (converted in ort-session-utils.cpp)
+    // Normalize to [0, 1]
+    cv::Mat normalized;
+    resizedImage.convertTo(normalized, CV_32FC3, 1.0 / 255.0);
+    // HWC -> CHW
+    hwc_to_chw(normalized, preprocessedImage);
+}
 
     virtual void loadInputToTensor(const cv::Mat &preprocessedImage,
                                    uint32_t inputWidth, uint32_t inputHeight,
