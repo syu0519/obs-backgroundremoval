@@ -499,13 +499,21 @@ static void processImageForBackground(struct background_removal_filter *tf, cons
 	// Assume outputImage is now a single channel, uint8 image with values between 0 and 255
 
 	// If we have a threshold, apply it. Otherwise, just use the output image as the mask
-	if (tf->enableThreshold) {
-		// We need to make tf->threshold (float [0,1]) be in that range
-		const uint8_t threshold_value = (uint8_t)(tf->threshold * 255.0f);
-		backgroundMask = outputImage < threshold_value;
-	} else {
-		backgroundMask = 255 - outputImage;
-	}
+if (tf->enableThreshold) {
+                const uint8_t threshold_value = (uint8_t)(tf->threshold * 255.0f);
+                backgroundMask = outputImage < threshold_value;
+        } else {
+                backgroundMask = 255 - outputImage;
+        }
+        // DEBUG: log outputImage and backgroundMask stats
+        double outMin, outMax;
+        cv::minMaxLoc(outputImage, &outMin, &outMax);
+        obs_log(LOG_INFO, "[CorridorKey DEBUG] outputImage min=%.3f max=%.3f type=%d size=%dx%d",
+                outMin, outMax, outputImage.type(), outputImage.cols, outputImage.rows);
+        double maskMin, maskMax;
+        cv::minMaxLoc(backgroundMask, &maskMin, &maskMax);
+        obs_log(LOG_INFO, "[CorridorKey DEBUG] backgroundMask min=%.3f max=%.3f",
+                maskMin, maskMax);
 }
 
 void background_filter_video_tick(void *data, float seconds)
