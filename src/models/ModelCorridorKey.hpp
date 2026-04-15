@@ -11,8 +11,9 @@
 //   Output[0]: name="alpha"  shape=[1,1,512,512]  float32  range [0,1]  post-sigmoid
 //   Output[1]: name="fg"     shape=[1,3,512,512]  float32  range [0,1]  post-sigmoid
 //
-// AlphaHint strategy: temporal feedback — use previous frame's alpha as next hint
-//                     First frame: neutral 0.5
+// AlphaHint strategy:
+//   Frame 0: HSV chroma key on green screen (H:32-56, S>80, V>60) → 0=green, 1=foreground
+//   Frame 1+: temporal feedback from previous alpha output
 
 #ifndef MODELCORRIDORKEY_H
 #define MODELCORRIDORKEY_H
@@ -21,9 +22,16 @@
 
 class ModelCorridorKey : public ModelBCHW {
 private:
-    cv::Mat prevAlpha;      // float32 [0,1], size = modelH x modelW
+    cv::Mat prevAlpha;      // float32 [0,1], H x W
     int modelH = 512;
     int modelW = 512;
+
+    // Chroma key HSV range for this green screen
+    // Confirmed from vplab green screen image analysis
+    const int CK_H_LOW  = 32;
+    const int CK_H_HIGH = 56;
+    const int CK_S_LOW  = 80;
+    const int CK_V_LOW  = 60;
 
 public:
     ModelCorridorKey() {}
@@ -49,7 +57,6 @@ public:
         inputDims.clear();
         outputDims.clear();
 
-        // Input: [1, 4, H, W]
         for (size_t i = 0; i < session->GetInputCount(); i++) {
             auto shape = session->GetInputTypeInfo(i)
                              .GetTensorTypeAndShapeInfo().GetShape();
@@ -63,16 +70,13 @@ public:
                     i, shape[0], shape[1], shape[2], shape[3]);
         }
 
-        // Detect model H/W
         if (!inputDims.empty() && inputDims[0].size() >= 4) {
             modelH = (int)inputDims[0][2];
             modelW = (int)inputDims[0][3];
             obs_log(LOG_INFO, "[CorridorKey] Model resolution: %d x %d", modelW, modelH);
         }
 
-        // Output shapes hardcoded from confirmed model spec:
-        // output[0] alpha: [1, 1, H, W]
-        // output[1] fg:    [1, 3, H, W]
+        // Hardcode output shapes from confirmed model spec
         int64_t outChannels[] = {1, 3};
         for (size_t i = 0; i < session->GetOutputCount(); i++) {
             int64_t ch = (i < 2) ? outChannels[i] : 1;
@@ -92,13 +96,12 @@ public:
             inputWidth  = (uint32_t)inputDims[0][3];
             inputHeight = (uint32_t)inputDims[0][2];
         } else {
-            inputWidth  = 512;
-            inputHeight = 512;
+            inputWidth = 512; inputHeight = 512;
         }
     }
 
-    // Input comes in as CV_32F [0,255] from ort-session-utils
-    // CorridorKey needs float32 [0,1], CHW layout
+    // resizedImage: CV_32F [0,255] HWC RGB — from ort-session-utils
+    // CorridorKey needs float32 [0,1] CHW
     virtual void prepareInputToNetwork(cv::Mat &resizedImage, cv::Mat &preprocessedImage)
     {
         cv::Mat normalized;
@@ -115,11 +118,13 @@ public:
 
         inputTensorValues[0].resize(totalSize, 0.0f);
 
+        // Copy CHW RGB planes [0,1]
         const float *src = preprocessedImage.ptr<float>(0);
         std::copy(src, src + rgbSize, inputTensorValues[0].begin());
 
+        // Build AlphaHint from CHW preprocessedImage
         float *alphaPtr = inputTensorValues[0].data() + rgbSize;
-        buildAlphaHint(inputWidth, inputHeight, alphaPtr);
+        buildAlphaHintFromCHW(src, inputWidth, inputHeight, alphaPtr);
     }
 
     virtual void assignOutputToInput(std::vector<std::vector<float>> &outputTensorValues,
@@ -133,6 +138,7 @@ public:
         }
     }
 
+    // Returns CV_8U [0,255]
     virtual cv::Mat getNetworkOutput(const std::vector<std::vector<int64_t>> &outputDims,
                                      std::vector<std::vector<float>> &outputTensorValues)
     {
@@ -166,18 +172,21 @@ public:
     virtual void postprocessOutput(cv::Mat &output)
     {
         UNUSED_PARAMETER(output);
-        // Already CV_8U. ort-session-utils convertTo(CV_8U,255) is safe no-op.
+        // Already CV_8U from getNetworkOutput
     }
 
 private:
-    void buildAlphaHint(uint32_t width, uint32_t height, float *outPtr)
+    // Build AlphaHint from CHW float [0,1] RGB data
+    // Strategy:
+    //   - If prevAlpha exists: use temporal feedback (resize prev alpha)
+    //   - If first frame: use HSV chroma key to detect green screen
+    //     green pixels → 0.0 (background), non-green → 1.0 (foreground)
+    void buildAlphaHintFromCHW(const float *chw, uint32_t width, uint32_t height, float *outPtr)
     {
         size_t pixelCount = (size_t)width * height;
 
-        if (prevAlpha.empty()) {
-            std::fill(outPtr, outPtr + pixelCount, 0.5f);
-            obs_log(LOG_INFO, "[CorridorKey] First frame: neutral AlphaHint (0.5)");
-        } else {
+        if (!prevAlpha.empty()) {
+            // Temporal feedback: resize previous alpha
             cv::Mat resized;
             cv::resize(prevAlpha, resized,
                        cv::Size((int)width, (int)height), 0, 0, cv::INTER_LINEAR);
@@ -186,8 +195,47 @@ private:
                 resized.convertTo(resizedF, CV_32FC1, 1.0 / 255.0);
             else
                 resizedF = resized;
-            const float *src = resizedF.ptr<float>(0);
-            std::copy(src, src + pixelCount, outPtr);
+            const float *s = resizedF.ptr<float>(0);
+            std::copy(s, s + pixelCount, outPtr);
+            return;
+        }
+
+        // First frame: HSV chroma key
+        obs_log(LOG_INFO, "[CorridorKey] First frame: HSV chroma key AlphaHint");
+
+        // Reconstruct HWC uint8 from CHW float [0,1]
+        cv::Mat rgbFloat(height, width, CV_32FC3);
+        float *dst = rgbFloat.ptr<float>(0);
+        const float *rPlane = chw;
+        const float *gPlane = chw + pixelCount;
+        const float *bPlane = chw + pixelCount * 2;
+        for (size_t i = 0; i < pixelCount; i++) {
+            dst[i * 3 + 0] = rPlane[i];
+            dst[i * 3 + 1] = gPlane[i];
+            dst[i * 3 + 2] = bPlane[i];
+        }
+
+        // Convert to uint8 BGR for OpenCV HSV conversion
+        cv::Mat rgbUint8, bgrUint8, hsvMat;
+        rgbFloat.convertTo(rgbUint8, CV_8UC3, 255.0);
+        cv::cvtColor(rgbUint8, bgrUint8, cv::COLOR_RGB2BGR);
+        cv::cvtColor(bgrUint8, hsvMat, cv::COLOR_BGR2HSV);
+
+        // Green screen mask: green=0 (background), non-green=1 (foreground)
+        // vplab green screen: H=32-56, S>80, V>60
+        cv::Mat greenMask;
+        cv::inRange(hsvMat,
+                    cv::Scalar(CK_H_LOW, CK_S_LOW, CK_V_LOW),
+                    cv::Scalar(CK_H_HIGH, 255, 255),
+                    greenMask); // 255 = green, 0 = not green
+
+        // Slight blur to soften edges
+        cv::GaussianBlur(greenMask, greenMask, cv::Size(5, 5), 1.5);
+
+        // Write to output: green→0.0, non-green→1.0
+        const uint8_t *maskPtr = greenMask.ptr<uint8_t>(0);
+        for (size_t i = 0; i < pixelCount; i++) {
+            outPtr[i] = 1.0f - (maskPtr[i] / 255.0f);
         }
     }
 };
