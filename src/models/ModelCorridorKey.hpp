@@ -4,12 +4,15 @@
 //
 // ModelCorridorKey.hpp
 // CorridorKey AI green screen keyer for obs-backgroundremoval
-// Based on CorridorKey Runtime (https://github.com/alexandremendoncaalvaro/CorridorKey-Runtime)
 //
-// Input:  BCHW, 4 channels (RGB + AlphaHint), float32, range [0,1]
-// Output: 2 tensors - alpha matte + foreground color
-// AlphaHint strategy: use previous frame's alpha output as next frame's hint
-//                     (temporal feedback loop, similar to GreenKiller's approach)
+// Confirmed from ONNX inspection (ort 1.17.0, int8_512 model):
+//   Input:  name="input_rgb_hint"  shape=[1,4,512,512]  float32  range [0,1]
+//           Channel layout: [R, G, B, AlphaHint]  all in [0,1]
+//   Output[0]: name="alpha"  shape=[1,1,512,512]  float32  range [0,1]  post-sigmoid
+//   Output[1]: name="fg"     shape=[1,3,512,512]  float32  range [0,1]  post-sigmoid
+//
+// AlphaHint strategy: temporal feedback — use previous frame's alpha as next hint
+//                     First frame: neutral 0.5
 
 #ifndef MODELCORRIDORKEY_H
 #define MODELCORRIDORKEY_H
@@ -18,16 +21,14 @@
 
 class ModelCorridorKey : public ModelBCHW {
 private:
-    // Store previous alpha for temporal AlphaHint feedback
-    cv::Mat prevAlpha;
-    int modelResolution = 512; // default, will be updated from model shape
+    cv::Mat prevAlpha;      // float32 [0,1], size = modelH x modelW
+    int modelH = 512;
+    int modelW = 512;
 
 public:
     ModelCorridorKey() {}
     ~ModelCorridorKey() {}
 
-    // CorridorKey has 2 inputs: plate (RGB) + alpha_hint
-    // and 2 outputs: alpha + foreground
     virtual void populateInputOutputNames(const std::unique_ptr<Ort::Session> &session,
                                           std::vector<Ort::AllocatedStringPtr> &inputNames,
                                           std::vector<Ort::AllocatedStringPtr> &outputNames)
@@ -35,15 +36,10 @@ public:
         Ort::AllocatorWithDefaultOptions allocator;
         inputNames.clear();
         outputNames.clear();
-
-        // CorridorKey has 2 inputs: plate + alpha_hint
-        for (size_t i = 0; i < session->GetInputCount(); i++) {
+        for (size_t i = 0; i < session->GetInputCount(); i++)
             inputNames.push_back(session->GetInputNameAllocated(i, allocator));
-        }
-        // CorridorKey has 2 outputs: alpha + foreground
-        for (size_t i = 0; i < session->GetOutputCount(); i++) {
+        for (size_t i = 0; i < session->GetOutputCount(); i++)
             outputNames.push_back(session->GetOutputNameAllocated(i, allocator));
-        }
     }
 
     virtual bool populateInputOutputShapes(const std::unique_ptr<Ort::Session> &session,
@@ -53,189 +49,144 @@ public:
         inputDims.clear();
         outputDims.clear();
 
-        // Read actual input shapes from model
+        // Input: [1, 4, H, W]
         for (size_t i = 0; i < session->GetInputCount(); i++) {
-            const Ort::TypeInfo inputTypeInfo = session->GetInputTypeInfo(i);
-            const auto inputTensorInfo = inputTypeInfo.GetTensorTypeAndShapeInfo();
-            auto shape = inputTensorInfo.GetShape();
-            // Fix dynamic dims (-1) to 1
-            for (auto &d : shape) {
-                if (d <= 0) d = 1;
+            auto shape = session->GetInputTypeInfo(i)
+                             .GetTensorTypeAndShapeInfo().GetShape();
+            if (!shape.empty() && shape[0] <= 0) shape[0] = 1;
+            if (shape.size() >= 4) {
+                shape[2] = 512;
+                shape[3] = 512;
             }
             inputDims.push_back(shape);
+            obs_log(LOG_INFO, "[CorridorKey] Input %zu: [%lld, %lld, %lld, %lld]",
+                    i, shape[0], shape[1], shape[2], shape[3]);
         }
 
-// Read actual output shapes from model
-        // Use input H/W to fix dynamic output dims (CUDA EP reports -1 for H/W)
-        int64_t knownH = 512, knownW = 512;
+        // Detect model H/W
         if (!inputDims.empty() && inputDims[0].size() >= 4) {
-            knownH = (inputDims[0][2] > 0) ? inputDims[0][2] : 512;
-            knownW = (inputDims[0][3] > 0) ? inputDims[0][3] : 512;
+            modelH = (int)inputDims[0][2];
+            modelW = (int)inputDims[0][3];
+            obs_log(LOG_INFO, "[CorridorKey] Model resolution: %d x %d", modelW, modelH);
         }
+
+        // Output shapes hardcoded from confirmed model spec:
+        // output[0] alpha: [1, 1, H, W]
+        // output[1] fg:    [1, 3, H, W]
+        int64_t outChannels[] = {1, 3};
         for (size_t i = 0; i < session->GetOutputCount(); i++) {
-            const Ort::TypeInfo outputTypeInfo = session->GetOutputTypeInfo(i);
-            const auto outputTensorInfo = outputTypeInfo.GetTensorTypeAndShapeInfo();
-            auto shape = outputTensorInfo.GetShape();
-            for (size_t j = 0; j < shape.size(); j++) {
-                if (shape[j] <= 0) {
-                    if (shape.size() == 4) {
-                        if (j == 0) shape[j] = 1;
-                        else if (j == 1) shape[j] = 1;
-                        else if (j == 2) shape[j] = knownH;
-                        else if (j == 3) shape[j] = knownW;
-                    } else {
-                        shape[j] = 1;
-                    }
-                }
-            }
+            int64_t ch = (i < 2) ? outChannels[i] : 1;
+            std::vector<int64_t> shape = {1, ch, (int64_t)modelH, (int64_t)modelW};
             outputDims.push_back(shape);
-        }
-
-        // Detect model resolution from input shape (BCHW → dim[2] = H, dim[3] = W)
-        if (!inputDims.empty() && inputDims[0].size() >= 4) {
-            modelResolution = (int)inputDims[0][2]; // H
-            obs_log(LOG_INFO, "[CorridorKey] Model resolution detected: %d x %d",
-                    (int)inputDims[0][3], modelResolution);
-        }
-
-        // If model only has 1 input slot (4ch BCHW merged),
-        // we handle AlphaHint by inserting it as channel 3
-        if (inputDims.size() == 1) {
-            obs_log(LOG_INFO, "[CorridorKey] Single input mode (4ch BCHW): plate+alpha merged");
-        } else {
-            obs_log(LOG_INFO, "[CorridorKey] Dual input mode: plate + alpha_hint separate");
+            obs_log(LOG_INFO, "[CorridorKey] Output %zu: [1, %lld, %d, %d]",
+                    i, ch, modelW, modelH);
         }
 
         return true;
     }
 
-    // BCHW: input width/height from dim[3] and dim[2]
     virtual void getNetworkInputSize(const std::vector<std::vector<int64_t>> &inputDims,
                                      uint32_t &inputWidth, uint32_t &inputHeight)
     {
-        if (inputDims.empty() || inputDims[0].size() < 4) {
-            inputWidth = 512;
+        if (!inputDims.empty() && inputDims[0].size() >= 4) {
+            inputWidth  = (uint32_t)inputDims[0][3];
+            inputHeight = (uint32_t)inputDims[0][2];
+        } else {
+            inputWidth  = 512;
             inputHeight = 512;
-            return;
         }
-        inputWidth  = (uint32_t)inputDims[0][3]; // W
-        inputHeight = (uint32_t)inputDims[0][2]; // H
     }
 
-    // Preprocess: normalize to [0,1], convert HWC→CHW
+    // Input comes in as CV_32F [0,255] from ort-session-utils
+    // CorridorKey needs float32 [0,1], CHW layout
     virtual void prepareInputToNetwork(cv::Mat &resizedImage, cv::Mat &preprocessedImage)
-{
-    // Input is already RGB (converted in ort-session-utils.cpp)
-    // Normalize to [0, 1]
-    cv::Mat normalized;
-    resizedImage.convertTo(normalized, CV_32FC3, 1.0 / 255.0);
-    // HWC -> CHW
-    hwc_to_chw(normalized, preprocessedImage);
-}
+    {
+        cv::Mat normalized;
+        resizedImage.convertTo(normalized, CV_32FC3, 1.0 / 255.0);
+        hwc_to_chw(normalized, preprocessedImage);
+    }
 
     virtual void loadInputToTensor(const cv::Mat &preprocessedImage,
                                    uint32_t inputWidth, uint32_t inputHeight,
                                    std::vector<std::vector<float>> &inputTensorValues)
     {
-        // CHW RGB data → input tensor [0]
-        size_t rgbSize = 3 * inputWidth * inputHeight;
+        size_t rgbSize   = 3 * inputWidth * inputHeight;
+        size_t totalSize = 4 * inputWidth * inputHeight;
 
-        if (inputTensorValues.size() == 1) {
-            // Single input: 4ch BCHW (RGB + AlphaHint merged)
-            // Layout: [R_plane, G_plane, B_plane, Alpha_plane]
-            inputTensorValues[0].resize(4 * inputWidth * inputHeight, 0.0f);
+        inputTensorValues[0].resize(totalSize, 0.0f);
 
-            // Copy RGB (first 3 channels)
-            const float *src = preprocessedImage.ptr<float>(0);
-            std::copy(src, src + rgbSize, inputTensorValues[0].begin());
+        const float *src = preprocessedImage.ptr<float>(0);
+        std::copy(src, src + rgbSize, inputTensorValues[0].begin());
 
-            // AlphaHint channel (channel index 3)
-            float *alphaPtr = inputTensorValues[0].data() + rgbSize;
-            buildAlphaHint(inputWidth, inputHeight, alphaPtr);
-
-        } else if (inputTensorValues.size() >= 2) {
-            // Dual input: plate + alpha_hint separate tensors
-            const float *src = preprocessedImage.ptr<float>(0);
-            inputTensorValues[0].assign(src, src + rgbSize);
-
-            // AlphaHint as second input
-            inputTensorValues[1].resize(inputWidth * inputHeight, 0.0f);
-            buildAlphaHint(inputWidth, inputHeight, inputTensorValues[1].data());
-        }
+        float *alphaPtr = inputTensorValues[0].data() + rgbSize;
+        buildAlphaHint(inputWidth, inputHeight, alphaPtr);
     }
 
-    // After inference, save alpha output for next frame's AlphaHint
     virtual void assignOutputToInput(std::vector<std::vector<float>> &outputTensorValues,
                                      std::vector<std::vector<float>> &inputTensorValues)
     {
         UNUSED_PARAMETER(inputTensorValues);
-
-        // outputTensorValues[0] = alpha matte (1CHW or 1HW1)
-        if (!outputTensorValues.empty() && !outputTensorValues[0].empty()) {
-            // Save as prevAlpha for next frame
-            // We store it as flat float vector, will reshape on use
-            size_t sz = outputTensorValues[0].size();
-            int side = (int)std::sqrt((double)sz);
-            prevAlpha = cv::Mat(side, side, CV_32FC1,
+        if (!outputTensorValues.empty() &&
+            outputTensorValues[0].size() == (size_t)(modelH * modelW)) {
+            prevAlpha = cv::Mat(modelH, modelW, CV_32FC1,
                                 outputTensorValues[0].data()).clone();
         }
     }
 
-    // Get final mask output
-    // CorridorKey output[0] = alpha (1CHW float), range [0,1]
-    // We convert to uint8 HWC for the rest of the pipeline
     virtual cv::Mat getNetworkOutput(const std::vector<std::vector<int64_t>> &outputDims,
                                      std::vector<std::vector<float>> &outputTensorValues)
     {
-        if (outputDims.empty() || outputTensorValues.empty()) {
+        UNUSED_PARAMETER(outputDims);
+
+        if (outputTensorValues.empty() || outputTensorValues[0].empty()) {
+            obs_log(LOG_ERROR, "[CorridorKey] No output data");
             return cv::Mat();
         }
 
-        // outputDims[0] should be BCHW: [1, 1, H, W]
-        int H = 1, W = 1;
-        if (outputDims[0].size() >= 4) {
-            H = (int)outputDims[0][2];
-            W = (int)outputDims[0][3];
-        } else if (outputDims[0].size() >= 3) {
-            H = (int)outputDims[0][1];
-            W = (int)outputDims[0][2];
+        size_t expected = (size_t)(modelH * modelW);
+        if (outputTensorValues[0].size() != expected) {
+            obs_log(LOG_ERROR, "[CorridorKey] Output size mismatch: got %zu expected %zu",
+                    outputTensorValues[0].size(), expected);
+            return cv::Mat();
         }
 
-        // Alpha matte, float [0,1]
-        cv::Mat alphaMat(H, W, CV_32FC1, outputTensorValues[0].data());
-
-        // Save for next frame's AlphaHint
+        cv::Mat alphaMat(modelH, modelW, CV_32FC1, outputTensorValues[0].data());
         prevAlpha = alphaMat.clone();
 
-// Return float [0,1] — pipeline will convert to uint8
-        return alphaMat.clone();
+        float minVal, maxVal;
+        cv::minMaxLoc(alphaMat, &minVal, &maxVal);
+        obs_log(LOG_INFO, "[CorridorKey] Alpha: %dx%d  min=%.4f  max=%.4f",
+                modelW, modelH, minVal, maxVal);
+
+        cv::Mat result;
+        alphaMat.convertTo(result, CV_8U, 255.0);
+        return result;
     }
 
-virtual void postprocessOutput(cv::Mat &output)
-{
-    UNUSED_PARAMETER(output);
-    // Keep float [0,1] — ort-session-utils will convert to CV_8U
-}
+    virtual void postprocessOutput(cv::Mat &output)
+    {
+        UNUSED_PARAMETER(output);
+        // Already CV_8U. ort-session-utils convertTo(CV_8U,255) is safe no-op.
+    }
 
 private:
-    // Build AlphaHint from previous frame's alpha
-    // First frame: use rough chroma key (green detection) as initial hint
     void buildAlphaHint(uint32_t width, uint32_t height, float *outPtr)
     {
         size_t pixelCount = (size_t)width * height;
 
         if (prevAlpha.empty()) {
-            // First frame: no previous alpha
-            // Use neutral 0.5 hint (let CorridorKey figure it out)
             std::fill(outPtr, outPtr + pixelCount, 0.5f);
-            obs_log(LOG_INFO, "[CorridorKey] First frame: using neutral AlphaHint (0.5)");
+            obs_log(LOG_INFO, "[CorridorKey] First frame: neutral AlphaHint (0.5)");
         } else {
-            // Subsequent frames: resize prev alpha to current input size and use as hint
             cv::Mat resized;
-            cv::resize(prevAlpha, resized, cv::Size((int)width, (int)height),
-                       0, 0, cv::INTER_LINEAR);
-
-            const float *src = resized.ptr<float>(0);
+            cv::resize(prevAlpha, resized,
+                       cv::Size((int)width, (int)height), 0, 0, cv::INTER_LINEAR);
+            cv::Mat resizedF;
+            if (resized.depth() != CV_32F)
+                resized.convertTo(resizedF, CV_32FC1, 1.0 / 255.0);
+            else
+                resizedF = resized;
+            const float *src = resizedF.ptr<float>(0);
             std::copy(src, src + pixelCount, outPtr);
         }
     }
