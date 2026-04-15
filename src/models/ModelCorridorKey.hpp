@@ -22,14 +22,14 @@
 
 class ModelCorridorKey : public ModelBCHW {
 private:
-    cv::Mat prevAlpha;      // float32 [0,1], H x W
-    int modelH = 512;
-    int modelW = 512;
+	int modelH = 512;
+	int modelW = 512;
 
     // Chroma key HSV range for this green screen
     // Confirmed from vplab green screen image analysis
     // 新的（取代）
 public:                 // ← 加這行
+    cv::Mat prevAlpha;      // float32 [0,1], H x W
     int ck_hue_center = 44; // OpenCV H range 0-180
     int ck_hue_range = 12;
     int ck_sat_min = 80;
