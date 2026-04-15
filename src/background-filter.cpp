@@ -350,7 +350,7 @@ void background_filter_update(void *data, obs_data_t *settings)
 			ckModel->ck_val_min = tf->ckValMin;
 			ckModel->ck_edge_softness = tf->ckEdgeSoftness;
 		}
-
+	} // ← 這行是新加的，關閉 if (tf->model)
 
 	const std::string newUseGpu = obs_data_get_string(settings, "useGPU");
 	const std::string newModel = obs_data_get_string(settings, "model_select");

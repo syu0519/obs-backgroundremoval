@@ -29,6 +29,7 @@ private:
     // Chroma key HSV range for this green screen
     // Confirmed from vplab green screen image analysis
     // 新的（取代）
+public:                 // ← 加這行
     int ck_hue_center = 44; // OpenCV H range 0-180
     int ck_hue_range = 12;
     int ck_sat_min = 80;
