@@ -123,11 +123,9 @@ int createOrtSession(filter_data *tf)
 bool runFilterModelInference(filter_data *tf, const cv::Mat &imageBGRA, cv::Mat &output)
 {
 	if (tf->session.get() == nullptr) {
-		// Onnx runtime session is not initialized. Problem in initialization
 		return false;
 	}
 	if (tf->model.get() == nullptr) {
-		// Model object is not initialized
 		return false;
 	}
 
@@ -142,7 +140,9 @@ bool runFilterModelInference(filter_data *tf, const cv::Mat &imageBGRA, cv::Mat 
 	cv::Mat resizedImageRGB;
 	cv::resize(imageRGB, resizedImageRGB, cv::Size(inputWidth, inputHeight));
 
-	// Prepare input to nework
+	// Prepare input to network
+	// Note: resizedImageRGB is CV_8UC3 [0,255]
+	// convertTo CV_32F keeps range [0,255] — prepareInputToNetwork does /255 normalization
 	cv::Mat resizedImage, preprocessedImage;
 	resizedImageRGB.convertTo(resizedImage, CV_32F);
 
@@ -151,25 +151,38 @@ bool runFilterModelInference(filter_data *tf, const cv::Mat &imageBGRA, cv::Mat 
 	tf->model->loadInputToTensor(preprocessedImage, inputWidth, inputHeight, tf->inputTensorValues);
 
 	// Run network inference
-        try {
-                tf->model->runNetworkInference(tf->session, tf->inputNames, tf->outputNames, tf->inputTensor, tf->outputTensor);
-        } catch (const std::exception &e) {
-                obs_log(LOG_ERROR, "[CorridorKey] Inference exception: %s", e.what());
-                return false;
-        }
+	try {
+		tf->model->runNetworkInference(tf->session, tf->inputNames, tf->outputNames,
+					       tf->inputTensor, tf->outputTensor);
+	} catch (const std::exception &e) {
+		obs_log(LOG_ERROR, "[CorridorKey] Inference exception: %s", e.what());
+		return false;
+	}
 
-	// Get output
-	// Map network output to cv::Mat
+	// Get output — returns CV_8U [0,255] for CorridorKey,
+	//              or CV_32FC1 [0,1] for other models
 	cv::Mat outputImage = tf->model->getNetworkOutput(tf->outputDims, tf->outputTensorValues);
 
-	// Assign output to input in some models that have temporal information
+	if (outputImage.empty()) {
+		obs_log(LOG_ERROR, "Network output is empty");
+		return false;
+	}
+
+	// Assign output to input for models with temporal feedback
 	tf->model->assignOutputToInput(tf->outputTensorValues, tf->inputTensorValues);
 
-	// Post-process output. The image will now be in [0,1] float, BHWC format
+	// Post-process output
 	tf->model->postprocessOutput(outputImage);
 
-	// Convert [0,1] float to CV_8U [0,255]
-	outputImage.convertTo(output, CV_8U, 255.0);
+	// Convert to CV_8U [0,255]
+	// If already CV_8U (CorridorKey): this is a safe copy, values unchanged
+	// If CV_32FC1 [0,1] (other models): multiply by 255
+	if (outputImage.type() == CV_32FC1) {
+		outputImage.convertTo(output, CV_8U, 255.0);
+	} else {
+		// Already CV_8U
+		output = outputImage;
+	}
 
 	return true;
 }
