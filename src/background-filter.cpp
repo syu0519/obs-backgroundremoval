@@ -349,6 +349,7 @@ void background_filter_update(void *data, obs_data_t *settings)
 			ckModel->ck_sat_min = tf->ckSatMin;
 			ckModel->ck_val_min = tf->ckValMin;
 			ckModel->ck_edge_softness = tf->ckEdgeSoftness;
+			ckModel->prevAlpha = cv::Mat(); // ← 加這行，強制下一幀重跑 HSV
 		}
 	} // ← 這行是新加的，關閉 if (tf->model)
 
