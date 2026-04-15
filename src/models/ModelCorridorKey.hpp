@@ -28,10 +28,12 @@ private:
 
     // Chroma key HSV range for this green screen
     // Confirmed from vplab green screen image analysis
-    const int CK_H_LOW  = 32;
-    const int CK_H_HIGH = 56;
-    const int CK_S_LOW  = 80;
-    const int CK_V_LOW  = 60;
+    // 新的（取代）
+    int ck_hue_center = 44; // OpenCV H range 0-180
+    int ck_hue_range = 12;
+    int ck_sat_min = 80;
+    int ck_val_min = 60;
+    float ck_edge_softness = 1.5f;
 
 public:
     ModelCorridorKey() {}
@@ -224,13 +226,12 @@ private:
         // Green screen mask: green=0 (background), non-green=1 (foreground)
         // vplab green screen: H=32-56, S>80, V>60
         cv::Mat greenMask;
-        cv::inRange(hsvMat,
-                    cv::Scalar(CK_H_LOW, CK_S_LOW, CK_V_LOW),
-                    cv::Scalar(CK_H_HIGH, 255, 255),
-                    greenMask); // 255 = green, 0 = not green
-
-        // Slight blur to soften edges
-        cv::GaussianBlur(greenMask, greenMask, cv::Size(5, 5), 1.5);
+	// 新的
+	int hLow = std::max(0, ck_hue_center - ck_hue_range);
+	int hHigh = std::min(180, ck_hue_center + ck_hue_range);
+	cv::inRange(hsvMat, cv::Scalar(hLow, ck_sat_min, ck_val_min), cv::Scalar(hHigh, 255, 255), greenMask);
+	// Slight blur to soften edges
+	cv::GaussianBlur(greenMask, greenMask, cv::Size(5, 5), ck_edge_softness);
 
         // Write to output: green→0.0, non-green→1.0
         const uint8_t *maskPtr = greenMask.ptr<uint8_t>(0);

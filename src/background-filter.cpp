@@ -56,6 +56,13 @@ struct background_removal_filter : public filter_data, public std::enable_shared
 	float blurFocusPoint = 0.1f;
 	float blurFocusDepth = 0.1f;
 
+	// CorridorKey params
+	int ckHueCenter = 44;
+	int ckHueRange = 12;
+	int ckSatMin = 80;
+	int ckValMin = 60;
+	float ckEdgeSoftness = 1.5f;
+
 	gs_effect_t *effect;
 	gs_effect_t *kawaseBlurEffect;
 
@@ -204,6 +211,17 @@ obs_properties_t *background_filter_properties(void *data)
 	obs_property_list_add_string(p_model_select, obs_module_text("CorridorKey FP16 1024"), MODEL_CORRIDORKEY_FP16_1024);
 	obs_property_list_add_string(p_model_select, obs_module_text("CorridorKey FP16 2048"), MODEL_CORRIDORKEY_FP16_2048);
 
+/* CorridorKey Chroma Key Props */
+	obs_properties_t *ck_props = obs_properties_create();
+
+	obs_properties_add_int_slider(ck_props, "ck_hue_center", obs_module_text("CKHueCenter"), 0, 180, 1);
+	obs_properties_add_int_slider(ck_props, "ck_hue_range", obs_module_text("CKHueRange"), 0, 90, 1);
+	obs_properties_add_int_slider(ck_props, "ck_sat_min", obs_module_text("CKSatMin"), 0, 255, 1);
+	obs_properties_add_int_slider(ck_props, "ck_val_min", obs_module_text("CKValMin"), 0, 255, 1);
+	obs_properties_add_float_slider(ck_props, "ck_edge_softness", obs_module_text("CKEdgeSoftness"), 0.0, 5.0, 0.1);
+
+	obs_properties_add_group(props, "ck_group", obs_module_text("CKGroup"), OBS_GROUP_NORMAL, ck_props);
+
 	obs_properties_add_float_slider(props, "temporal_smooth_factor", obs_module_text("TemporalSmoothFactor"), 0.0,
 					1.0, 0.01);
 
@@ -257,6 +275,11 @@ void background_filter_defaults(obs_data_t *settings)
 	obs_data_set_default_double(settings, "smooth_contour", 0.5);
 	obs_data_set_default_double(settings, "mask_expansion", 0);
 	obs_data_set_default_double(settings, "feather", 0.0);
+	obs_data_set_default_int(settings, "ck_hue_center", 44);
+	obs_data_set_default_int(settings, "ck_hue_range", 12);
+	obs_data_set_default_int(settings, "ck_sat_min", 80);
+	obs_data_set_default_int(settings, "ck_val_min", 60);
+	obs_data_set_default_double(settings, "ck_edge_softness", 1.5);
 #if defined(__APPLE__)
 	obs_data_set_default_string(settings, "useGPU", USEGPU_CPU);
 #else
@@ -309,6 +332,25 @@ void background_filter_update(void *data, obs_data_t *settings)
 	tf->temporalSmoothFactor = (float)obs_data_get_double(settings, "temporal_smooth_factor");
 	tf->imageSimilarityThreshold = (float)obs_data_get_double(settings, "image_similarity_threshold");
 	tf->enableImageSimilarity = (float)obs_data_get_bool(settings, "enable_image_similarity");
+
+	// CorridorKey params
+	tf->ckHueCenter = (int)obs_data_get_int(settings, "ck_hue_center");
+	tf->ckHueRange = (int)obs_data_get_int(settings, "ck_hue_range");
+	tf->ckSatMin = (int)obs_data_get_int(settings, "ck_sat_min");
+	tf->ckValMin = (int)obs_data_get_int(settings, "ck_val_min");
+	tf->ckEdgeSoftness = (float)obs_data_get_double(settings, "ck_edge_softness");
+
+	// 傳給 model（如果是 CorridorKey model）
+	if (tf->model) {
+		auto *ckModel = dynamic_cast<ModelCorridorKey *>(tf->model.get());
+		if (ckModel) {
+			ckModel->ck_hue_center = tf->ckHueCenter;
+			ckModel->ck_hue_range = tf->ckHueRange;
+			ckModel->ck_sat_min = tf->ckSatMin;
+			ckModel->ck_val_min = tf->ckValMin;
+			ckModel->ck_edge_softness = tf->ckEdgeSoftness;
+		}
+
 
 	const std::string newUseGpu = obs_data_get_string(settings, "useGPU");
 	const std::string newModel = obs_data_get_string(settings, "model_select");
