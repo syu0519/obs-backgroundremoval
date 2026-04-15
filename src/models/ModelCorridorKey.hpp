@@ -153,10 +153,10 @@ public:
         cv::Mat alphaMat(modelH, modelW, CV_32FC1, outputTensorValues[0].data());
         prevAlpha = alphaMat.clone();
 
-        float minVal, maxVal;
+        double minVal, maxVal;
         cv::minMaxLoc(alphaMat, &minVal, &maxVal);
         obs_log(LOG_INFO, "[CorridorKey] Alpha: %dx%d  min=%.4f  max=%.4f",
-                modelW, modelH, minVal, maxVal);
+                modelW, modelH, (float)minVal, (float)maxVal);
 
         cv::Mat result;
         alphaMat.convertTo(result, CV_8U, 255.0);
