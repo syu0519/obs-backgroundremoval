@@ -770,10 +770,7 @@ static gs_texture_t *blur_background(std::shared_ptr<background_removal_filter> 
 		gs_effect_set_int(blurTotal, (int)tf->blurBackground);
 		gs_effect_set_float(blurFocusPointParam, tf->blurFocusPoint);
 		gs_effect_set_float(blurFocusDepthParam, tf->blurFocusDepth);
-		gs_eparam_t *despillStrengthParam = gs_effect_get_param_by_name(tf->effect, "despill_strength");
-		gs_eparam_t *despillBalanceParam = gs_effect_get_param_by_name(tf->effect, "despill_balance");
-		gs_effect_set_float(despillStrengthParam, tf->ckDespillStrength);
-		gs_effect_set_float(despillBalanceParam, tf->ckDespillBalance);
+
 
 		struct vec4 background;
 		vec4_zero(&background);
@@ -870,6 +867,10 @@ void background_filter_video_render(void *data, gs_effect_t *_effect)
 	gs_eparam_t *blurredBackground = gs_effect_get_param_by_name(tf->effect, "blurredBackground");
 
 	gs_effect_set_texture(alphamask, alphaTexture);
+	gs_eparam_t *despillStrengthParam = gs_effect_get_param_by_name(tf->effect, "despill_strength");
+	gs_eparam_t *despillBalanceParam = gs_effect_get_param_by_name(tf->effect, "despill_balance");
+	gs_effect_set_float(despillStrengthParam, tf->ckDespillStrength);
+	gs_effect_set_float(despillBalanceParam, tf->ckDespillBalance);
 
 	if (tf->blurBackground > 0) {
 		gs_effect_set_texture(blurredBackground, blurredTexture);
