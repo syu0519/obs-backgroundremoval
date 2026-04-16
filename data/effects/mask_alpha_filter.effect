@@ -3,6 +3,8 @@ uniform float4x4 ViewProj;
 uniform texture2d image;     // input RGBA
 uniform texture2d alphamask; // alpha mask
 uniform texture2d blurredBackground; // input RGBA
+uniform float despill_strength;
+uniform float despill_balance;
 
 sampler_state textureSampler {
 	Filter    = Linear;
@@ -32,6 +34,9 @@ float4 PSAlphaMaskRGBAWithBlur(VertDataOut v_in) : TARGET
 {
 	float4 inputRGBA = image.Sample(textureSampler, v_in.uv);
 	inputRGBA.rgb = max(float3(0.0, 0.0, 0.0), inputRGBA.rgb / inputRGBA.a);
+	float maxRB = lerp(inputRGBA.r, inputRGBA.b, despill_balance);
+   	float spillAmt = max(0.0, inputRGBA.g - maxRB);
+    	inputRGBA.g -= spillAmt * despill_strength;
 
 	float4 outputRGBA;
 	float a = (1.0 - alphamask.Sample(textureSampler, v_in.uv).r) * inputRGBA.a;
@@ -48,14 +53,17 @@ float4 PSTakeBlur(VertDataOut v_in) : TARGET
 
 float4 PSAlphaMaskRGBAWithoutBlur(VertDataOut v_in) : TARGET
 {
-	float4 inputRGBA = image.Sample(textureSampler, v_in.uv);
-	inputRGBA.rgb = max(float3(0.0, 0.0, 0.0), inputRGBA.rgb / inputRGBA.a);
-
-	float4 outputRGBA;
-	float a = (1.0 - alphamask.Sample(textureSampler, v_in.uv).r) * inputRGBA.a;
-	outputRGBA.rgb = inputRGBA.rgb * a;
-	outputRGBA.a = a;
-	return outputRGBA;
+    float4 inputRGBA = image.Sample(textureSampler, v_in.uv);
+    inputRGBA.rgb = max(float3(0.0, 0.0, 0.0), inputRGBA.rgb / inputRGBA.a);
+    // De-spill
+    float maxRB = lerp(inputRGBA.r, inputRGBA.b, despill_balance);
+    float spillAmt = max(0.0, inputRGBA.g - maxRB);
+    inputRGBA.g -= spillAmt * despill_strength;
+    float4 outputRGBA;
+    float a = (1.0 - alphamask.Sample(textureSampler, v_in.uv).r) * inputRGBA.a;
+    outputRGBA.rgb = inputRGBA.rgb * a;
+    outputRGBA.a = a;
+    return outputRGBA;
 }
 
 technique DrawWithBlur

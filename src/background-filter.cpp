@@ -62,6 +62,8 @@ struct background_removal_filter : public filter_data, public std::enable_shared
 	int ckSatMin = 80;
 	int ckValMin = 60;
 	float ckEdgeSoftness = 1.5f;
+	float ckDespillStrength = 0.0f;
+	float ckDespillBalance = 0.5f;
 
 	gs_effect_t *effect;
 	gs_effect_t *kawaseBlurEffect;
@@ -219,6 +221,11 @@ obs_properties_t *background_filter_properties(void *data)
 	obs_properties_add_int_slider(ck_props, "ck_sat_min", obs_module_text("CKSatMin"), 0, 255, 1);
 	obs_properties_add_int_slider(ck_props, "ck_val_min", obs_module_text("CKValMin"), 0, 255, 1);
 	obs_properties_add_float_slider(ck_props, "ck_edge_softness", obs_module_text("CKEdgeSoftness"), 0.0, 5.0, 0.1);
+	obs_properties_add_float_slider(ck_props, "ck_despill_strength", obs_module_text("CKDespillStrength"), 0.0, 1.0,
+					0.05);
+	obs_properties_add_float_slider(ck_props, "ck_despill_balance", obs_module_text("CKDespillBalance"), 0.0, 1.0,
+					0.05);
+
 
 	obs_properties_add_group(props, "ck_group", obs_module_text("CKGroup"), OBS_GROUP_NORMAL, ck_props);
 
@@ -280,6 +287,8 @@ void background_filter_defaults(obs_data_t *settings)
 	obs_data_set_default_int(settings, "ck_sat_min", 80);
 	obs_data_set_default_int(settings, "ck_val_min", 60);
 	obs_data_set_default_double(settings, "ck_edge_softness", 1.5);
+	obs_data_set_default_double(settings, "ck_despill_strength", 0.0);
+	obs_data_set_default_double(settings, "ck_despill_balance", 0.5);
 #if defined(__APPLE__)
 	obs_data_set_default_string(settings, "useGPU", USEGPU_CPU);
 #else
@@ -339,6 +348,8 @@ void background_filter_update(void *data, obs_data_t *settings)
 	tf->ckSatMin = (int)obs_data_get_int(settings, "ck_sat_min");
 	tf->ckValMin = (int)obs_data_get_int(settings, "ck_val_min");
 	tf->ckEdgeSoftness = (float)obs_data_get_double(settings, "ck_edge_softness");
+	tf->ckDespillStrength = (float)obs_data_get_double(settings, "ck_despill_strength");
+	tf->ckDespillBalance = (float)obs_data_get_double(settings, "ck_despill_balance");
 
 	// 傳給 model（如果是 CorridorKey model）
 	if (tf->model) {
@@ -759,6 +770,10 @@ static gs_texture_t *blur_background(std::shared_ptr<background_removal_filter> 
 		gs_effect_set_int(blurTotal, (int)tf->blurBackground);
 		gs_effect_set_float(blurFocusPointParam, tf->blurFocusPoint);
 		gs_effect_set_float(blurFocusDepthParam, tf->blurFocusDepth);
+		gs_eparam_t *despillStrengthParam = gs_effect_get_param_by_name(tf->effect, "despill_strength");
+		gs_eparam_t *despillBalanceParam = gs_effect_get_param_by_name(tf->effect, "despill_balance");
+		gs_effect_set_float(despillStrengthParam, tf->ckDespillStrength);
+		gs_effect_set_float(despillBalanceParam, tf->ckDespillBalance);
 
 		struct vec4 background;
 		vec4_zero(&background);
