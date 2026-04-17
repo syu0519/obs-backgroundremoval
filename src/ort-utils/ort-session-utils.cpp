@@ -57,7 +57,19 @@ int createOrtSession(filter_data *tf)
 	try {
 #ifdef HAVE_ONNXRUNTIME_CUDA_EP
 		if (tf->useGPU == USEGPU_CUDA) {
-			Ort::ThrowOnError(OrtSessionOptionsAppendExecutionProvider_CUDA(sessionOptions, 0));
+			// CorridorKey fix: use explicit CUDA provider options
+			// to prevent memory arena crash on dual-GPU systems (e.g. dual RTX 3090)
+			// with fp16 models. Default arena is too aggressive with VRAM allocation.
+			OrtCUDAProviderOptions cuda_options;
+			memset(&cuda_options, 0, sizeof(cuda_options));
+			cuda_options.device_id = 0;
+			cuda_options.arena_extend_strategy = 1;                 // kSameAsRequested: no greedy pre-alloc
+			cuda_options.gpu_mem_limit = 8ULL * 1024 * 1024 * 1024; // 8 GB cap
+			cuda_options.cudnn_conv_algo_search = OrtCudnnConvAlgoSearchHeuristic;
+			cuda_options.do_copy_in_default_stream = 1;
+			sessionOptions.AppendExecutionProvider_CUDA(cuda_options);
+			obs_log(LOG_INFO,
+				"[CorridorKey] CUDA EP: arena_extend_strategy=kSameAsRequested, gpu_mem_limit=8GB");
 		}
 #endif
 #ifdef HAVE_ONNXRUNTIME_ROCM_EP
@@ -142,7 +154,7 @@ bool runFilterModelInference(filter_data *tf, const cv::Mat &imageBGRA, cv::Mat 
 
 	// Prepare input to network
 	// Note: resizedImageRGB is CV_8UC3 [0,255]
-	// convertTo CV_32F keeps range [0,255] — prepareInputToNetwork does /255 normalization
+	// convertTo CV_32F keeps range [0,255] -> prepareInputToNetwork does /255 normalization
 	cv::Mat resizedImage, preprocessedImage;
 	resizedImageRGB.convertTo(resizedImage, CV_32F);
 
@@ -152,14 +164,14 @@ bool runFilterModelInference(filter_data *tf, const cv::Mat &imageBGRA, cv::Mat 
 
 	// Run network inference
 	try {
-		tf->model->runNetworkInference(tf->session, tf->inputNames, tf->outputNames,
-					       tf->inputTensor, tf->outputTensor);
+		tf->model->runNetworkInference(tf->session, tf->inputNames, tf->outputNames, tf->inputTensor,
+					       tf->outputTensor);
 	} catch (const std::exception &e) {
 		obs_log(LOG_ERROR, "[CorridorKey] Inference exception: %s", e.what());
 		return false;
 	}
 
-	// Get output — returns CV_8U [0,255] for CorridorKey,
+	// Get output -> returns CV_8U [0,255] for CorridorKey,
 	//              or CV_32FC1 [0,1] for other models
 	cv::Mat outputImage = tf->model->getNetworkOutput(tf->outputDims, tf->outputTensorValues);
 
