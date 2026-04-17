@@ -89,9 +89,30 @@ sessionOptions.SetGraphOptimizationLevel(GraphOptimizationLevel::ORT_ENABLE_BASI
 #endif
 #ifdef HAVE_ONNXRUNTIME_TENSORRT_EP
 		if (tf->useGPU == USEGPU_TENSORRT) {
-			Ort::ThrowOnError(OrtSessionOptionsAppendExecutionProvider_Tensorrt(sessionOptions, 0));
+			try {
+				std::string device_id_str = "0";
+				std::string cache_enable_str = "1";
+				std::string fp16_str = "1";
+				std::vector<const char *> keys = {
+					"device_id",
+					"trt_engine_cache_enable",
+					"trt_fp16_enable",
+				};
+				std::vector<const char *> values = {
+					device_id_str.c_str(),
+					cache_enable_str.c_str(),
+					fp16_str.c_str(),
+				};
+				sessionOptions.AppendExecutionProvider("NvTensorRtRtx", keys.data(), values.data(),
+								       keys.size());
+				obs_log(LOG_INFO, "[CorridorKey] NvTensorRtRtx EP initialized (fp16, device_id=0)");
+			} catch (const Ort::Exception &e) {
+				obs_log(LOG_ERROR, "[CorridorKey] NvTensorRtRtx EP failed: %s", e.what());
+				return OBS_BGREMOVAL_ORT_SESSION_ERROR_STARTUP;
+			}
 		}
-#endif
+#endif 
+
 #if defined(__APPLE__)
 		if (tf->useGPU == USEGPU_COREML) {
 			uint32_t coreml_flags = 0;
