@@ -26,7 +26,7 @@ int createOrtSession(filter_data *tf)
 
 	Ort::SessionOptions sessionOptions;
 
-	sessionOptions.SetGraphOptimizationLevel(GraphOptimizationLevel::ORT_ENABLE_ALL);
+sessionOptions.SetGraphOptimizationLevel(GraphOptimizationLevel::ORT_ENABLE_BASIC);
 	if (tf->useGPU != USEGPU_CPU) {
 		sessionOptions.DisableMemPattern();
 		sessionOptions.SetExecutionMode(ExecutionMode::ORT_SEQUENTIAL);
