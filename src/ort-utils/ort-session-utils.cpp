@@ -103,8 +103,9 @@ sessionOptions.SetGraphOptimizationLevel(GraphOptimizationLevel::ORT_ENABLE_BASI
 					cache_enable_str.c_str(),
 					fp16_str.c_str(),
 				};
-				sessionOptions.AppendExecutionProvider("NvTensorRtRtx", keys.data(), values.data(),
-								       keys.size());
+				Ort::ThrowOnError(Ort::GetApi().SessionOptionsAppendExecutionProvider(
+					sessionOptions, "NvTensorRtRtx", keys.data(), values.data(), keys.size()));
+
 				obs_log(LOG_INFO, "[CorridorKey] NvTensorRtRtx EP initialized (fp16, device_id=0)");
 			} catch (const Ort::Exception &e) {
 				obs_log(LOG_ERROR, "[CorridorKey] NvTensorRtRtx EP failed: %s", e.what());
