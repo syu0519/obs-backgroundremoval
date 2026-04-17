@@ -132,6 +132,18 @@ int createOrtSession(filter_data *tf)
 	return OBS_BGREMOVAL_ORT_SESSION_SUCCESS;
 }
 
+static bool runInferenceSEH(filter_data *tf)
+{
+	__try {
+		tf->model->runNetworkInference(tf->session, tf->inputNames, tf->outputNames, tf->inputTensor,
+					       tf->outputTensor);
+		return true;
+	} __except (EXCEPTION_EXECUTE_HANDLER) {
+		obs_log(LOG_ERROR, "[CorridorKey] SEH exception in session->Run(), code=0x%08X", GetExceptionCode());
+		return false;
+	}
+}
+
 bool runFilterModelInference(filter_data *tf, const cv::Mat &imageBGRA, cv::Mat &output)
 {
 	if (tf->session.get() == nullptr) {
@@ -162,16 +174,13 @@ bool runFilterModelInference(filter_data *tf, const cv::Mat &imageBGRA, cv::Mat 
 
 	tf->model->loadInputToTensor(preprocessedImage, inputWidth, inputHeight, tf->inputTensorValues);
 
-	// Run network inference
+// Run network inference
 	obs_log(LOG_INFO, "[CorridorKey] Before session->Run() inputSize=%zu", tf->inputTensorValues[0].size());
-	__try {
-		tf->model->runNetworkInference(tf->session, tf->inputNames, tf->outputNames, tf->inputTensor,
-					       tf->outputTensor);
-	} __except (EXCEPTION_EXECUTE_HANDLER) {
-		obs_log(LOG_ERROR, "[CorridorKey] SEH exception in session->Run(), code=0x%08X", GetExceptionCode());
+	if (!runInferenceSEH(tf)) {
 		return false;
 	}
 	obs_log(LOG_INFO, "[CorridorKey] After session->Run() OK");
+
 
 	// Get output -> returns CV_8U [0,255] for CorridorKey,
 	//              or CV_32FC1 [0,1] for other models
