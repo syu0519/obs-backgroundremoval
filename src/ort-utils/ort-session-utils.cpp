@@ -163,6 +163,7 @@ bool runFilterModelInference(filter_data *tf, const cv::Mat &imageBGRA, cv::Mat 
 	tf->model->loadInputToTensor(preprocessedImage, inputWidth, inputHeight, tf->inputTensorValues);
 
 	// Run network inference
+	obs_log(LOG_INFO, "[CorridorKey] Before session->Run() inputSize=%zu", tf->inputTensorValues[0].size());
 	try {
 		tf->model->runNetworkInference(tf->session, tf->inputNames, tf->outputNames, tf->inputTensor,
 					       tf->outputTensor);
@@ -170,6 +171,7 @@ bool runFilterModelInference(filter_data *tf, const cv::Mat &imageBGRA, cv::Mat 
 		obs_log(LOG_ERROR, "[CorridorKey] Inference exception: %s", e.what());
 		return false;
 	}
+	obs_log(LOG_INFO, "[CorridorKey] After session->Run() OK");
 
 	// Get output -> returns CV_8U [0,255] for CorridorKey,
 	//              or CV_32FC1 [0,1] for other models
