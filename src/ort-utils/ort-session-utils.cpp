@@ -60,16 +60,21 @@ sessionOptions.SetGraphOptimizationLevel(GraphOptimizationLevel::ORT_ENABLE_BASI
 			// CorridorKey fix: use explicit CUDA provider options
 			// to prevent memory arena crash on dual-GPU systems (e.g. dual RTX 3090)
 			// with fp16 models. Default arena is too aggressive with VRAM allocation.
+			// Fix: disable cuDNN precompiled engines which fail-fast on RTX 3090 (Ampere/sm_86)
+			// with cuDNN 9.x fp16 Conv kernels (cask_cudnn::InitializeAllResources abort)
+			_putenv_s("CUDNN_DISABLE_PRECOMPILED_KERNELS", "1");
+			obs_log(LOG_INFO, "[CorridorKey] CUDNN_DISABLE_PRECOMPILED_KERNELS=1 set");
+
 			OrtCUDAProviderOptions cuda_options;
 			memset(&cuda_options, 0, sizeof(cuda_options));
 			cuda_options.device_id = 0;
 			cuda_options.arena_extend_strategy = 1;                 // kSameAsRequested: no greedy pre-alloc
 			cuda_options.gpu_mem_limit = 8ULL * 1024 * 1024 * 1024; // 8 GB cap
-			cuda_options.cudnn_conv_algo_search = OrtCudnnConvAlgoSearchHeuristic;
+			cuda_options.cudnn_conv_algo_search = OrtCudnnConvAlgoSearchDefault; // avoid precompiled engine path
 			cuda_options.do_copy_in_default_stream = 1;
 			sessionOptions.AppendExecutionProvider_CUDA(cuda_options);
 			obs_log(LOG_INFO,
-				"[CorridorKey] CUDA EP: arena_extend_strategy=kSameAsRequested, gpu_mem_limit=8GB");
+				"[CorridorKey] CUDA EP: arena_extend_strategy=kSameAsRequested, gpu_mem_limit=8GB, algo_search=Default");
 		}
 #endif
 #ifdef HAVE_ONNXRUNTIME_ROCM_EP
