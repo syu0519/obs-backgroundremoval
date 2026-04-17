@@ -164,11 +164,11 @@ bool runFilterModelInference(filter_data *tf, const cv::Mat &imageBGRA, cv::Mat 
 
 	// Run network inference
 	obs_log(LOG_INFO, "[CorridorKey] Before session->Run() inputSize=%zu", tf->inputTensorValues[0].size());
-	try {
+	__try {
 		tf->model->runNetworkInference(tf->session, tf->inputNames, tf->outputNames, tf->inputTensor,
 					       tf->outputTensor);
-	} catch (const std::exception &e) {
-		obs_log(LOG_ERROR, "[CorridorKey] Inference exception: %s", e.what());
+	} __except (EXCEPTION_EXECUTE_HANDLER) {
+		obs_log(LOG_ERROR, "[CorridorKey] SEH exception in session->Run(), code=0x%08X", GetExceptionCode());
 		return false;
 	}
 	obs_log(LOG_INFO, "[CorridorKey] After session->Run() OK");
