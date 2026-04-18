@@ -187,6 +187,28 @@ void *enhance_filter_create(obs_data_t *settings, obs_source_t *source)
 		std::string instanceName{"enhance-portrait-inference"};
 		instance->env.reset(new Ort::Env(OrtLoggingLevel::ORT_LOGGING_LEVEL_ERROR, instanceName.c_str()));
 
+		instance->env.reset(new Ort::Env(OrtLoggingLevel::ORT_LOGGING_LEVEL_ERROR, instanceName.c_str()));
+
+// Register NvTensorRTRTX EP plugin DLL
+#ifdef HAVE_ONNXRUNTIME_TENSORRT_EP
+		{
+			char module_path[MAX_PATH];
+			GetModuleFileNameA(GetModuleHandleA("obs-backgroundremoval.dll"), module_path, MAX_PATH);
+			std::string ep_lib = std::filesystem::path(module_path).parent_path().string() +
+					     "\\onnxruntime_providers_nv_tensorrt_rtx.dll";
+
+			OrtStatus *status =
+				Ort::GetApi().RegisterExecutionProviderLibrary(*instance->env, ep_lib.c_str());
+			if (status != nullptr) {
+				obs_log(LOG_WARNING, "[CorridorKey] RegisterExecutionProviderLibrary failed: %s",
+					Ort::GetApi().GetErrorMessage(status));
+				Ort::GetApi().ReleaseStatus(status);
+			} else {
+				obs_log(LOG_INFO, "[CorridorKey] EP library registered: %s", ep_lib.c_str());
+			}
+		}
+#endif
+
 		// Create pointer to shared_ptr for the update call
 		auto ptr = new std::shared_ptr<enhance_filter>(instance);
 		enhance_filter_update(ptr, settings);
