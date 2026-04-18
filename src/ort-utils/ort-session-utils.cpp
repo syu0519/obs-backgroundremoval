@@ -106,7 +106,7 @@ sessionOptions.SetGraphOptimizationLevel(GraphOptimizationLevel::ORT_ENABLE_BASI
 #ifdef HAVE_ONNXRUNTIME_TENSORRT_EP
 		if (tf->useGPU == USEGPU_TENSORRT) {
 			try {
-				const OrtEpDevice **ep_devices = nullptr;
+				const OrtEpDevice *const *ep_devices = nullptr;
 				size_t device_count = 0;
 				Ort::ThrowOnError(Ort::GetApi().GetEpDevices(*tf->env, &ep_devices, &device_count));
 
