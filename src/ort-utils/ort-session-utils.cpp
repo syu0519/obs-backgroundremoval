@@ -106,29 +106,34 @@ sessionOptions.SetGraphOptimizationLevel(GraphOptimizationLevel::ORT_ENABLE_BASI
 #ifdef HAVE_ONNXRUNTIME_TENSORRT_EP
 		if (tf->useGPU == USEGPU_TENSORRT) {
 			try {
-				std::string device_id_str = "0";
-				std::string cache_enable_str = "1";
-				std::string fp16_str = "1";
-				std::vector<const char *> keys = {
-					"device_id",
-					"trt_engine_cache_enable",
-					"trt_fp16_enable",
-				};
-				std::vector<const char *> values = {
-					device_id_str.c_str(),
-					cache_enable_str.c_str(),
-					fp16_str.c_str(),
-				};
-				Ort::ThrowOnError(Ort::GetApi().SessionOptionsAppendExecutionProvider(
-					sessionOptions, "NvTensorRTRTX", keys.data(), values.data(), keys.size()));
+				// Get EP devices
+				OrtEpDevice **ep_devices = nullptr;
+				size_t device_count = 0;
+				Ort::ThrowOnError(Ort::GetApi().GetEpDevices(*tf->env, &ep_devices, &device_count));
 
-				obs_log(LOG_INFO, "[CorridorKey] NvTensorRTRTX EP initialized (fp16, device_id=0)");
+				if (device_count > 0) {
+					// Select first device
+					std::vector<const OrtEpDevice *> selected = {ep_devices[0]};
+
+					// Append using V2 API
+					OrtKeyValuePairs *kv = nullptr;
+					Ort::GetApi().CreateKeyValuePairs(&kv);
+					Ort::GetApi().AddKeyValuePair(kv, "device_id", "0");
+					Ort::GetApi().AddKeyValuePair(kv, "trt_fp16_enable", "1");
+
+					Ort::ThrowOnError(Ort::GetApi().SessionOptionsAppendExecutionProvider_V2(
+						sessionOptions, *tf->env, selected.data(), selected.size(), kv));
+
+					Ort::GetApi().ReleaseKeyValuePairs(kv);
+					Ort::GetApi().ReleaseEpDevices(ep_devices, device_count);
+					obs_log(LOG_INFO, "[CorridorKey] NvTensorRTRTX EP V2 initialized");
+				}
 			} catch (const Ort::Exception &e) {
 				obs_log(LOG_ERROR, "[CorridorKey] NvTensorRTRTX EP failed: %s", e.what());
 				return OBS_BGREMOVAL_ORT_SESSION_ERROR_STARTUP;
 			}
 		}
-#endif 
+#endif
 
 #if defined(__APPLE__)
 		if (tf->useGPU == USEGPU_COREML) {

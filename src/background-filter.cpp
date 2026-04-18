@@ -518,7 +518,7 @@ void *background_filter_create(obs_data_t *settings, obs_source_t *source)
 			obs_log(LOG_INFO, "[CorridorKey] EP lib path: %s", ep_lib_str.c_str());
 			std::wstring ep_lib_w(ep_lib_str.begin(), ep_lib_str.end());
 			OrtStatus *status = Ort::GetApi().RegisterExecutionProviderLibrary(
-				*instance->env, ep_lib_str.c_str(), ep_lib_w.c_str());
+				*instance->env, "nv_tensorrt_rtx", ep_lib_w.c_str());
 			if (status != nullptr) {
 				obs_log(LOG_WARNING, "[CorridorKey] RegisterExecutionProviderLibrary failed: %s",
 					Ort::GetApi().GetErrorMessage(status));
