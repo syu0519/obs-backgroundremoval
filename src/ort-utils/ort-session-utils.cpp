@@ -111,11 +111,13 @@ sessionOptions.SetGraphOptimizationLevel(GraphOptimizationLevel::ORT_ENABLE_BASI
 				Ort::ThrowOnError(Ort::GetApi().GetEpDevices(*tf->env, &ep_devices, &device_count));
 
 				if (device_count > 0) {
-					const char *keys[] = {"device_id", "trt_fp16_enable"};
-					const char *values[] = {"0", "1"};
+					const char *keys[] = {"device_id", "trt_fp16_enable", "trt_engine_cache_enable",
+							      "trt_engine_cache_path"};
+					const char *values[] = {"0", "1", "1",
+								"C:\\ProgramData\\obs-corridorkey-cache"};
 
 					Ort::ThrowOnError(Ort::GetApi().SessionOptionsAppendExecutionProvider_V2(
-						sessionOptions, *tf->env, ep_devices, 1, keys, values, 2));
+						sessionOptions, *tf->env, ep_devices, 1, keys, values, 4));
 
 					obs_log(LOG_INFO, "[CorridorKey] NvTensorRTRTX EP V2 initialized, devices=%zu",
 						device_count);
