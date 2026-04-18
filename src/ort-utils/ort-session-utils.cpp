@@ -87,6 +87,22 @@ sessionOptions.SetGraphOptimizationLevel(GraphOptimizationLevel::ORT_ENABLE_BASI
 			Ort::ThrowOnError(OrtSessionOptionsAppendExecutionProvider_MIGraphX(sessionOptions, 0));
 		}
 #endif
+		// Re-register EP library before appending
+		char module_path[MAX_PATH] = {0};
+		GetModuleFileNameA(GetModuleHandleA("obs-backgroundremoval.dll"), module_path, MAX_PATH);
+		std::string ep_lib_str = std::filesystem::path(module_path).parent_path().string() +
+					 "\\obs-backgroundremoval\\onnxruntime_providers_nv_tensorrt_rtx.dll";
+		std::wstring ep_lib_w(ep_lib_str.begin(), ep_lib_str.end());
+		OrtStatus *reg_status =
+			Ort::GetApi().RegisterExecutionProviderLibrary(*tf->env, ep_lib_str.c_str(), ep_lib_w.c_str());
+		if (reg_status) {
+			obs_log(LOG_WARNING, "[CorridorKey] Re-register EP failed: %s",
+				Ort::GetApi().GetErrorMessage(reg_status));
+			Ort::GetApi().ReleaseStatus(reg_status);
+		} else {
+			obs_log(LOG_INFO, "[CorridorKey] EP re-registered in createOrtSession");
+		}
+
 #ifdef HAVE_ONNXRUNTIME_TENSORRT_EP
 		if (tf->useGPU == USEGPU_TENSORRT) {
 			try {
