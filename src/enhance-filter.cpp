@@ -209,7 +209,17 @@ void *enhance_filter_create(obs_data_t *settings, obs_source_t *source)
 				std::wstring ep_lib_w(ep_lib_str.begin(), ep_lib_str.end());
 				OrtStatus *status = Ort::GetApi().RegisterExecutionProviderLibrary(
 					*instance->env, ep_lib_str.c_str(), ep_lib_w.c_str());
-					}
+				if (status != nullptr) {
+					obs_log(LOG_WARNING,
+						"[CorridorKey] RegisterExecutionProviderLibrary failed: %s",
+						Ort::GetApi().GetErrorMessage(status));
+					Ort::GetApi().ReleaseStatus(status);
+				} else {
+					obs_log(LOG_INFO, "[CorridorKey] EP library registered: %s",
+						ep_lib_str.c_str());
+				}
+			} // ← 這個 } 是 if (data_path) 的結尾，現在缺少
+		} // ← 這個 } 是最外層 {} 的結尾
 #endif
 
 		// Create pointer to shared_ptr for the update call
