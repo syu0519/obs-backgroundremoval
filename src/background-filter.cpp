@@ -514,7 +514,7 @@ void *background_filter_create(obs_data_t *settings, obs_source_t *source)
 				GetModuleFileNameA(hmod, module_path, MAX_PATH);
 			}
 			std::string ep_lib_str = std::filesystem::path(module_path).parent_path().string() +
-						 "\\onnxruntime_providers_nv_tensorrt_rtx.dll";
+						 "\\obs-backgroundremoval\\onnxruntime_providers_nv_tensorrt_rtx.dll";
 			obs_log(LOG_INFO, "[CorridorKey] EP lib path: %s", ep_lib_str.c_str());
 			std::wstring ep_lib_w(ep_lib_str.begin(), ep_lib_str.end());
 			OrtStatus *status = Ort::GetApi().RegisterExecutionProviderLibrary(
