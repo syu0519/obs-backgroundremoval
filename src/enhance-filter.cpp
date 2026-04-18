@@ -195,22 +195,21 @@ void *enhance_filter_create(obs_data_t *settings, obs_source_t *source)
 // Register NvTensorRTRTX EP plugin DLL
 #ifdef HAVE_ONNXRUNTIME_TENSORRT_EP
 		{
-			char module_path[MAX_PATH];
-			GetModuleFileNameA(GetModuleHandleA("obs-backgroundremoval.dll"), module_path, MAX_PATH);
-			std::string ep_lib_str = std::filesystem::path(module_path).parent_path().string() +
-						 "\\onnxruntime_providers_nv_tensorrt_rtx.dll";
-			std::wstring ep_lib_w(ep_lib_str.begin(), ep_lib_str.end());
-
-			OrtStatus *status = Ort::GetApi().RegisterExecutionProviderLibrary(
-				*instance->env, ep_lib_str.c_str(), ep_lib_w.c_str());
-			if (status != nullptr) {
-				obs_log(LOG_WARNING, "[CorridorKey] RegisterExecutionProviderLibrary failed: %s",
-					Ort::GetApi().GetErrorMessage(status));
-				Ort::GetApi().ReleaseStatus(status);
-			} else {
-				obs_log(LOG_INFO, "[CorridorKey] EP library registered: %s", ep_lib_str.c_str());
-			}
-		}
+			char *data_path = obs_module_file(".");
+			if (data_path) {
+				std::string ep_lib_str =
+					std::filesystem::path(data_path)
+						.parent_path()
+						.parent_path()
+						.parent_path()
+						.string() +
+					"\\obs-plugins\\64bit\\obs-backgroundremoval\\onnxruntime_providers_nv_tensorrt_rtx.dll";
+				bfree(data_path);
+				obs_log(LOG_INFO, "[CorridorKey] EP lib path: %s", ep_lib_str.c_str());
+				std::wstring ep_lib_w(ep_lib_str.begin(), ep_lib_str.end());
+				OrtStatus *status = Ort::GetApi().RegisterExecutionProviderLibrary(
+					*instance->env, ep_lib_str.c_str(), ep_lib_w.c_str());
+					}
 #endif
 
 		// Create pointer to shared_ptr for the update call
