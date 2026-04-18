@@ -4,6 +4,8 @@
 
 #ifdef _WIN32
 #include <wchar.h>
+#include <windows.h>
+#include <filesystem>
 #endif // _WIN32
 
 #include <opencv2/imgproc.hpp>
@@ -24,6 +26,7 @@
 #include "models/ModelZeroDCE.h"
 #include "models/ModelURetinex.h"
 #include "update-checker/update-checker.h"
+
 
 struct enhance_filter : public filter_data, public std::enable_shared_from_this<enhance_filter> {
 	cv::Mat outputBGRA;
@@ -194,17 +197,18 @@ void *enhance_filter_create(obs_data_t *settings, obs_source_t *source)
 		{
 			char module_path[MAX_PATH];
 			GetModuleFileNameA(GetModuleHandleA("obs-backgroundremoval.dll"), module_path, MAX_PATH);
-			std::string ep_lib = std::filesystem::path(module_path).parent_path().string() +
-					     "\\onnxruntime_providers_nv_tensorrt_rtx.dll";
+			std::string ep_lib_str = std::filesystem::path(module_path).parent_path().string() +
+						 "\\onnxruntime_providers_nv_tensorrt_rtx.dll";
+			std::wstring ep_lib_w(ep_lib_str.begin(), ep_lib_str.end());
 
-			OrtStatus *status =
-				Ort::GetApi().RegisterExecutionProviderLibrary(*instance->env, ep_lib.c_str());
+			OrtStatus *status = Ort::GetApi().RegisterExecutionProviderLibrary(
+				*instance->env, ep_lib_str.c_str(), ep_lib_w.c_str());
 			if (status != nullptr) {
 				obs_log(LOG_WARNING, "[CorridorKey] RegisterExecutionProviderLibrary failed: %s",
 					Ort::GetApi().GetErrorMessage(status));
 				Ort::GetApi().ReleaseStatus(status);
 			} else {
-				obs_log(LOG_INFO, "[CorridorKey] EP library registered: %s", ep_lib.c_str());
+				obs_log(LOG_INFO, "[CorridorKey] EP library registered: %s", ep_lib_str.c_str());
 			}
 		}
 #endif
