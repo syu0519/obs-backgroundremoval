@@ -508,31 +508,25 @@ void *background_filter_create(obs_data_t *settings, obs_source_t *source)
 // Register NvTensorRTRTX EP plugin DLL
 #ifdef HAVE_ONNXRUNTIME_TENSORRT_EP
 		{
-			char *data_path = obs_module_file(".");
-			if (data_path) {
-				std::string ep_lib_str =
-					std::filesystem::path(data_path)
-						.parent_path()
-						.parent_path()
-						.parent_path()
-						.string() +
-					"\\obs-plugins\\64bit\\obs-backgroundremoval\\onnxruntime_providers_nv_tensorrt_rtx.dll";
-				bfree(data_path);
-				obs_log(LOG_INFO, "[CorridorKey] EP lib path: %s", ep_lib_str.c_str());
-				std::wstring ep_lib_w(ep_lib_str.begin(), ep_lib_str.end());
-				OrtStatus *status = Ort::GetApi().RegisterExecutionProviderLibrary(
-					*instance->env, ep_lib_str.c_str(), ep_lib_w.c_str());
-				if (status != nullptr) {
-					obs_log(LOG_WARNING,
-						"[CorridorKey] RegisterExecutionProviderLibrary failed: %s",
-						Ort::GetApi().GetErrorMessage(status));
-					Ort::GetApi().ReleaseStatus(status);
-				} else {
-					obs_log(LOG_INFO, "[CorridorKey] EP library registered: %s",
-						ep_lib_str.c_str());
-				}
-			} // ← 這個 } 是 if (data_path) 的結尾，現在缺少
-		} // ← 這個 } 是最外層 {} 的結尾
+			char module_path[MAX_PATH] = {0};
+			HMODULE hmod = GetModuleHandleA("obs-backgroundremoval.dll");
+			if (hmod) {
+				GetModuleFileNameA(hmod, module_path, MAX_PATH);
+			}
+			std::string ep_lib_str = std::filesystem::path(module_path).parent_path().string() +
+						 "\\onnxruntime_providers_nv_tensorrt_rtx.dll";
+			obs_log(LOG_INFO, "[CorridorKey] EP lib path: %s", ep_lib_str.c_str());
+			std::wstring ep_lib_w(ep_lib_str.begin(), ep_lib_str.end());
+			OrtStatus *status = Ort::GetApi().RegisterExecutionProviderLibrary(
+				*instance->env, ep_lib_str.c_str(), ep_lib_w.c_str());
+			if (status != nullptr) {
+				obs_log(LOG_WARNING, "[CorridorKey] RegisterExecutionProviderLibrary failed: %s",
+					Ort::GetApi().GetErrorMessage(status));
+				Ort::GetApi().ReleaseStatus(status);
+			} else {
+				obs_log(LOG_INFO, "[CorridorKey] EP library registered: %s", ep_lib_str.c_str());
+			}
+		}
 #endif
 
 		instance->modelSelection = MODEL_MEDIAPIPE;
