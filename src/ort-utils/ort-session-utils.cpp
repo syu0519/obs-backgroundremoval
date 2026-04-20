@@ -110,7 +110,7 @@ sessionOptions.SetGraphOptimizationLevel(GraphOptimizationLevel::ORT_ENABLE_BASI
 				std::unordered_map<std::string, std::string> ep_options;
 				ep_options["device_id"] = "0";
 				ep_options["nv_runtime_cache_path"] = "C:\\ProgramData\\obs-corridorkey-cache";
-				sessionOptions.AppendExecutionProvider("NvTensorRtRtxExecutionProvider", ep_options);
+				sessionOptions.AppendExecutionProvider("NvTensorRTRTXExecutionProvider", ep_options);
 				obs_log(LOG_INFO, "[CorridorKey] NvTensorRTRTX EP initialized with cache path");
 			} catch (const Ort::Exception &e) {
 				obs_log(LOG_ERROR, "[CorridorKey] NvTensorRTRTX EP failed: %s", e.what());
