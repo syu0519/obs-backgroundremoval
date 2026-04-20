@@ -29,6 +29,8 @@ const char *const MODEL_CORRIDORKEY_INT8_1024 = "models/corridorkey_int8_1024.on
 const char *const MODEL_CORRIDORKEY_FP16_512  = "models/corridorkey_fp16_512.onnx";
 const char *const MODEL_CORRIDORKEY_FP16_1024 = "models/corridorkey_fp16_1024.onnx";
 const char *const MODEL_CORRIDORKEY_FP16_2048 = "models/corridorkey_fp16_2048.onnx";
+const char *const MODEL_CORRIDORKEY_FP16_512_CTX  = "models/corridorkey_fp16_512_ctx.onnx";
+const char *const MODEL_CORRIDORKEY_FP16_1024_CTX = "models/corridorkey_fp16_1024_ctx.onnx";
 
 const char *const USEGPU_CPU = "cpu";
 const char *const USEGPU_CUDA = "cuda";
@@ -43,9 +45,9 @@ const char *const BLEND_EFFECT_PATH = "effects/blend_images.effect";
 
 const char *const PLUGIN_INFO_TEMPLATE =
 	"<a href=\"https://github.com/royshil/obs-backgroundremoval/\">Background Removal</a> (%1) by "
-	"<a href=\"https://github.com/royshil\">Roy Shilkrot</a> ‚ù§Ô∏è "
+	"<a href=\"https://github.com/royshil\">Roy Shilkrot</a> ?§Ô? "
 	"<a href=\"https://github.com/sponsors/royshil\">Support & Follow</a>";
 const char *const PLUGIN_INFO_TEMPLATE_UPDATE_AVAILABLE =
-	"<center><a href=\"https://github.com/royshil/obs-backgroundremoval/releases\">üöÄ Update available! (%1)</a></center>";
+	"<center><a href=\"https://github.com/royshil/obs-backgroundremoval/releases\">?? Update available! (%1)</a></center>";
 
 #endif /* CONSTS_H */
