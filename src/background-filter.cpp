@@ -796,22 +796,15 @@ void background_filter_update(void *data, obs_data_t *settings)
 			tf->model.reset(new ModelRMBG);
 
 		} else if (tf->modelSelection == MODEL_CORRIDORKEY_INT8_512 ||
-
-			   tf->modelSelection == MODEL_CORRIDORKEY_INT8_768 ||
-
-			   tf->modelSelection == MODEL_CORRIDORKEY_INT8_1024 ||
-
-			   tf->modelSelection == MODEL_CORRIDORKEY_FP16_512 ||
-
-			   tf->modelSelection == MODEL_CORRIDORKEY_FP16_1024 ||
-
-			   tf->modelSelection == MODEL_CORRIDORKEY_FP16_2048 ||
-			|| tf->modelSelection == MODEL_CORRIDORKEY_FP16_512_CTX
-				tf->modelSelection == MODEL_CORRIDORKEY_FP16_1024_CTX) {
-
-			tf->model.reset(new ModelCorridorKey);
-
-		}
+            tf->modelSelection == MODEL_CORRIDORKEY_INT8_768 ||
+            tf->modelSelection == MODEL_CORRIDORKEY_INT8_1024 ||
+            tf->modelSelection == MODEL_CORRIDORKEY_FP16_512 ||
+            tf->modelSelection == MODEL_CORRIDORKEY_FP16_1024 ||
+            tf->modelSelection == MODEL_CORRIDORKEY_FP16_2048 ||
+            tf->modelSelection == MODEL_CORRIDORKEY_FP16_512_CTX ||
+            tf->modelSelection == MODEL_CORRIDORKEY_FP16_1024_CTX) {
+            tf->model.reset(new ModelCorridorKey);
+                }
 
 
 
