@@ -1,4 +1,5 @@
 #include <onnxruntime_cxx_api.h>
+#include <unordered_map>
 #include <cpu_provider_factory.h>
 #include <filesystem>
 
@@ -106,25 +107,11 @@ sessionOptions.SetGraphOptimizationLevel(GraphOptimizationLevel::ORT_ENABLE_BASI
 #ifdef HAVE_ONNXRUNTIME_TENSORRT_EP
 		if (tf->useGPU == USEGPU_TENSORRT) {
 			try {
-				const OrtEpDevice *const *ep_devices = nullptr;
-				size_t device_count = 0;
-				Ort::ThrowOnError(Ort::GetApi().GetEpDevices(*tf->env, &ep_devices, &device_count));
-
-				if (device_count > 0) {
-					const char *keys[] = {"device_id", "nv_runtime_cache_path"};
-					const char *values[] = {"0", "C:\\ProgramData\\obs-corridorkey-cache"};
-
-					sessionOptions.AddConfigEntry("ep.context_enable", "1");
-                                        sessionOptions.AddConfigEntry("session.disable_cpu_ep_fallback", "1");
-                                        Ort::ThrowOnError(Ort::GetApi().SessionOptionsAppendExecutionProvider_V2(
-						sessionOptions, *tf->env, ep_devices, 1, keys, values, 2));
-
-					obs_log(LOG_INFO, "[CorridorKey] NvTensorRTRTX EP V2 initialized, devices=%zu",
-						device_count);
-				} else {
-					obs_log(LOG_ERROR, "[CorridorKey] No EP devices found");
-					return OBS_BGREMOVAL_ORT_SESSION_ERROR_STARTUP;
-				}
+				std::unordered_map<std::string, std::string> ep_options;
+				ep_options["device_id"] = "0";
+				ep_options["nv_runtime_cache_path"] = "C:\\ProgramData\\obs-corridorkey-cache";
+				sessionOptions.AppendExecutionProvider("NvTensorRtRtxExecutionProvider", ep_options);
+				obs_log(LOG_INFO, "[CorridorKey] NvTensorRTRTX EP initialized with cache path");
 			} catch (const Ort::Exception &e) {
 				obs_log(LOG_ERROR, "[CorridorKey] NvTensorRTRTX EP failed: %s", e.what());
 				return OBS_BGREMOVAL_ORT_SESSION_ERROR_STARTUP;
