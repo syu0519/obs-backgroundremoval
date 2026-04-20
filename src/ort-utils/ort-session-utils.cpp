@@ -115,6 +115,7 @@ sessionOptions.SetGraphOptimizationLevel(GraphOptimizationLevel::ORT_ENABLE_BASI
 					const char *values[] = {"0", "C:\\ProgramData\\obs-corridorkey-cache"};
 
 					sessionOptions.AddConfigEntry("ep.context_enable", "1");
+                                        sessionOptions.AddConfigEntry("session.disable_cpu_ep_fallback", "1");
                                         Ort::ThrowOnError(Ort::GetApi().SessionOptionsAppendExecutionProvider_V2(
 						sessionOptions, *tf->env, ep_devices, 1, keys, values, 2));
 
