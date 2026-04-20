@@ -45,7 +45,7 @@ const char *const BLEND_EFFECT_PATH = "effects/blend_images.effect";
 
 const char *const PLUGIN_INFO_TEMPLATE =
 	"<a href=\"https://github.com/royshil/obs-backgroundremoval/\">Background Removal</a> (%1) by "
-	"<a href=\"https://github.com/royshil\">Roy Shilkrot</a> ?¤ï? "
+	"<a href=\"https://github.com/royshil\">Roy Shilkrot</a> ?ï¿½ï¿½? "
 	"<a href=\"https://github.com/sponsors/royshil\">Support & Follow</a>";
 const char *const PLUGIN_INFO_TEMPLATE_UPDATE_AVAILABLE =
 	"<center><a href=\"https://github.com/royshil/obs-backgroundremoval/releases\">?? Update available! (%1)</a></center>";
