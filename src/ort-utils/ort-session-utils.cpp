@@ -114,7 +114,8 @@ sessionOptions.SetGraphOptimizationLevel(GraphOptimizationLevel::ORT_ENABLE_BASI
 					const char *keys[] = {"device_id", "nv_runtime_cache_path"};
 					const char *values[] = {"0", "C:\\ProgramData\\obs-corridorkey-cache"};
 
-					Ort::ThrowOnError(Ort::GetApi().SessionOptionsAppendExecutionProvider_V2(
+					sessionOptions.AddConfigEntry("ep.context_enable", "1");
+                                        Ort::ThrowOnError(Ort::GetApi().SessionOptionsAppendExecutionProvider_V2(
 						sessionOptions, *tf->env, ep_devices, 1, keys, values, 2));
 
 					obs_log(LOG_INFO, "[CorridorKey] NvTensorRTRTX EP V2 initialized, devices=%zu",
