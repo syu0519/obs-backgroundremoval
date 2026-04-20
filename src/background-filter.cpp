@@ -710,7 +710,7 @@ void background_filter_update(void *data, obs_data_t *settings)
 
 
 
-	// ?�給 model（�??�是 CorridorKey model�?
+	// ?�給 model（�??�是 CorridorKey model�?
 	if (tf->model) {
 
 		auto *ckModel = dynamic_cast<ModelCorridorKey *>(tf->model.get());
@@ -1178,17 +1178,13 @@ if (tf->enableThreshold) {
 
         cv::minMaxLoc(outputImage, &outMin, &outMax);
 
-        obs_log(LOG_INFO, "[CorridorKey DEBUG] outputImage min=%.3f max=%.3f type=%d size=%dx%d",
-
-                outMin, outMax, outputImage.type(), outputImage.cols, outputImage.rows);
+        // CorridorKey DEBUG log removed
 
         double maskMin, maskMax;
 
         cv::minMaxLoc(backgroundMask, &maskMin, &maskMax);
 
-        obs_log(LOG_INFO, "[CorridorKey DEBUG] backgroundMask min=%.3f max=%.3f",
-
-                maskMin, maskMax);
+        // CorridorKey DEBUG log removed
 
 }
 

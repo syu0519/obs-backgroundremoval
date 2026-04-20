@@ -12,7 +12,7 @@
 //   Output[1]: name="fg"     shape=[1,3,512,512]  float32  range [0,1]  post-sigmoid
 //
 // AlphaHint strategy:
-//   Frame 0: HSV chroma key on green screen (H:32-56, S>80, V>60) → 0=green, 1=foreground
+//   Frame 0: HSV chroma key on green screen (H:32-56, S>80, V>60) ??0=green, 1=foreground
 //   Frame 1+: temporal feedback from previous alpha output
 
 #ifndef MODELCORRIDORKEY_H
@@ -27,8 +27,8 @@ private:
 
     // Chroma key HSV range for this green screen
     // Confirmed from vplab green screen image analysis
-    // 新的（取代）
-public:                 // ← 加這行
+    // ?��?（�?�??
+public:                 // ???�這�?
     cv::Mat prevAlpha;      // float32 [0,1], H x W
     int ck_hue_center = 44; // OpenCV H range 0-180
     int ck_hue_range = 12;
@@ -64,10 +64,8 @@ public:
             auto shape = session->GetInputTypeInfo(i)
                              .GetTensorTypeAndShapeInfo().GetShape();
             if (!shape.empty() && shape[0] <= 0) shape[0] = 1;
-            if (shape.size() >= 4) {
-                shape[2] = 512;
-                shape[3] = 512;
-            }
+            if (shape.size() >= 4 && shape[2] <= 0) shape[2] = 512;
+            if (shape.size() >= 4 && shape[3] <= 0) shape[3] = 512;
             inputDims.push_back(shape);
             obs_log(LOG_INFO, "[CorridorKey] Input %zu: [%lld, %lld, %lld, %lld]",
                     i, shape[0], shape[1], shape[2], shape[3]);
@@ -103,7 +101,7 @@ public:
         }
     }
 
-    // resizedImage: CV_32F [0,255] HWC RGB — from ort-session-utils
+    // resizedImage: CV_32F [0,255] HWC RGB ??from ort-session-utils
     // CorridorKey needs float32 [0,1] CHW
     virtual void prepareInputToNetwork(cv::Mat &resizedImage, cv::Mat &preprocessedImage)
     {
@@ -164,8 +162,8 @@ public:
 
         double minVal, maxVal;
         cv::minMaxLoc(alphaMat, &minVal, &maxVal);
-        obs_log(LOG_INFO, "[CorridorKey] Alpha: %dx%d  min=%.4f  max=%.4f",
-                modelW, modelH, (float)minVal, (float)maxVal);
+        //obs_log(LOG_INFO, "[CorridorKey] Alpha: %dx%d  min=%.4f  max=%.4f",
+        //        modelW, modelH, (float)minVal, (float)maxVal);
 
         cv::Mat result;
         alphaMat.convertTo(result, CV_8U, 255.0);
@@ -183,7 +181,7 @@ private:
     // Strategy:
     //   - If prevAlpha exists: use temporal feedback (resize prev alpha)
     //   - If first frame: use HSV chroma key to detect green screen
-    //     green pixels → 0.0 (background), non-green → 1.0 (foreground)
+    //     green pixels ??0.0 (background), non-green ??1.0 (foreground)
     void buildAlphaHintFromCHW(const float *chw, uint32_t width, uint32_t height, float *outPtr)
     {
         size_t pixelCount = (size_t)width * height;
@@ -227,14 +225,14 @@ private:
         // Green screen mask: green=0 (background), non-green=1 (foreground)
         // vplab green screen: H=32-56, S>80, V>60
         cv::Mat greenMask;
-	// 新的
+	// ?��?
 	int hLow = std::max(0, ck_hue_center - ck_hue_range);
 	int hHigh = std::min(180, ck_hue_center + ck_hue_range);
 	cv::inRange(hsvMat, cv::Scalar(hLow, ck_sat_min, ck_val_min), cv::Scalar(hHigh, 255, 255), greenMask);
 	// Slight blur to soften edges
 	cv::GaussianBlur(greenMask, greenMask, cv::Size(5, 5), ck_edge_softness);
 
-        // Write to output: green→0.0, non-green→1.0
+        // Write to output: green??.0, non-green??.0
         const uint8_t *maskPtr = greenMask.ptr<uint8_t>(0);
         for (size_t i = 0; i < pixelCount; i++) {
             outPtr[i] = 1.0f - (maskPtr[i] / 255.0f);
