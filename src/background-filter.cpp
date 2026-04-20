@@ -710,7 +710,7 @@ void background_filter_update(void *data, obs_data_t *settings)
 
 
 
-	// ?�給 model（�??�是 CorridorKey model�?
+	// ?嚙賜策 model嚗蕭??嚙賣 CorridorKey model嚙?
 	if (tf->model) {
 
 		auto *ckModel = dynamic_cast<ModelCorridorKey *>(tf->model.get());
@@ -727,11 +727,11 @@ void background_filter_update(void *data, obs_data_t *settings)
 
 			ckModel->ck_edge_softness = tf->ckEdgeSoftness;
 
-			ckModel->prevAlpha = cv::Mat(); // ???�這�?，強?��?一幀?��? HSV
+			ckModel->prevAlpha = cv::Mat(); // ???嚙賡蕭?嚗撥?嚙踝蕭?銝撟?嚙踝蕭? HSV
 
 		}
 
-	} // ???��??�新?��?，�???if (tf->model)
+	} // ???嚙踝蕭??嚙賣?嚙踝蕭?嚗蕭???if (tf->model)
 
 
 
@@ -1178,13 +1178,17 @@ if (tf->enableThreshold) {
 
         cv::minMaxLoc(outputImage, &outMin, &outMax);
 
-        // CorridorKey DEBUG log removed
+ //       obs_log(LOG_INFO, "[CorridorKey DEBUG] outputImage min=%.3f max=%.3f type=%d size=%dx%d",
+
+ //               outMin, outMax, outputImage.type(), outputImage.cols, outputImage.rows);
 
         double maskMin, maskMax;
 
         cv::minMaxLoc(backgroundMask, &maskMin, &maskMax);
 
-        // CorridorKey DEBUG log removed
+ //       obs_log(LOG_INFO, "[CorridorKey DEBUG] backgroundMask min=%.3f max=%.3f",
+
+ //               maskMin, maskMax);
 
 }
 
